@@ -1,0 +1,413 @@
+/* ======================================= */
+/*          GLOBAL & BASIC SETUP           */
+/* ======================================= */
+body {
+    font-family: sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    color: #333;
+    background-color: #fdfdfd;
+}
+
+h2 {
+    margin-top: 0;
+    color: #555;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+hr {
+    width: 100%;
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 15px 0;
+}
+
+fieldset {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    margin: 0; /* Remove default margin */
+}
+
+legend {
+    font-weight: bold;
+    color: #555;
+    padding: 0 5px;
+}
+
+input[type="text"], select, button {
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+button {
+    cursor: pointer;
+}
+
+
+/* ======================================= */
+/*          MAIN LAYOUT & PANELS           */
+/* ======================================= */
+#main-container {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+#program-list-container {
+    border-right: 1px solid #ccc;
+    padding: 10px;
+    width: 220px;
+    flex-shrink: 0; /* Prevent this column from shrinking */
+    display: flex;
+    flex-direction: column;
+    background-color: #f7f7f7;
+}
+
+#program-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.program-item {
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.program-item.selected {
+    background-color: #007bff;
+    color: white;
+}
+
+.program-item:not(.selected):hover {
+    background-color: #e2e6ea;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    color: #999;
+    font-weight: bold;
+    padding: 2px 6px;
+}
+
+.program-item.selected .delete-btn {
+    color: white;
+}
+
+.delete-btn:hover {
+    color: #dc3545; /* Red on hover */
+}
+
+#profile-editor-container {
+    padding: 15px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* ======================================= */
+/*          NEW: EDITOR GRID LAYOUT        */
+/* ======================================= */
+#editor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr; /* First row auto-sizes, second row fills space */
+    gap: 5px;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+#profile-controls {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+}
+
+#program-specific-settings {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    /* This is how we hide it without causing a layout shift */
+    transition: visibility 0s, opacity 0.1s linear;
+}
+
+#keyboard-and-editor-area {
+    grid-column: 1 / 3; /* Span across both columns */
+    grid-row: 2 / 3;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Important for flex-grow to work in a grid */
+}
+/* ======================================= */
+/*          VIRTUAL KEYBOARD               */
+/* ======================================= */
+#virtual-keyboard {
+    padding: 10px;
+    background-color: #e0e0e0;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.keyboard-row {
+    display: flex;
+    justify-content: start;
+    margin-bottom: 8px;
+}
+.keyboard-row:last-child { margin-bottom: 0; }
+
+/* --- Adjusted Paddings for your layout --- */
+.keyboard-row:nth-child(1){ padding-left: 3rem; }
+.keyboard-row:nth-child(2){ padding-left: 4.3rem; }
+.keyboard-row:nth-child(3){ padding-left: 0rem; }
+.keyboard-row:last-child { padding-left: 2rem; }
+
+/* --- MODIFIED: Key Styling --- */
+.keyboard-key {
+    width: 90px;
+    height: 60px; /* Increased height slightly for better spacing */
+    margin: 0 2px;
+    border: 1px solid #999;
+    border-radius: 6px;
+    background-color: #f5f5f5;
+    box-shadow: 0 2px 0 #bbb;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.1s ease;
+    
+    /* Flex settings for vertical alignment */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around; /* This gives nice vertical spacing */
+    padding: 4px 2px; /* Add some vertical padding */
+    box-sizing: border-box;
+}
+
+.keyboard-key:hover {
+    background-color: #fafafa;
+}
+
+.keyboard-key:active {
+    box-shadow: 0 1px 0 #bbb;
+    transform: translateY(1px);
+}
+
+/* --- NEW/MODIFIED: The description that appears at the top of the key (with wrapping) --- */
+.key-description {
+    display: block;
+    font-size: 12px;
+    font-weight: bold;
+    font-style: italic;
+    color: #005a9e;
+    text-align: center;
+    
+    /* --- CORE CHANGES FOR WRAPPING --- */
+    white-space: normal;    /* <-- Allows text to wrap to the next line */
+    word-break: break-word; /* <-- Breaks long words that would overflow */
+    line-height: 1.2;       /* <-- Adjusts spacing between wrapped lines */
+
+    /* Use min-height to prevent layout shifts when no text is present,
+       but allow the element to grow taller if the text wraps. */
+    min-height: 12px; 
+
+    /* Constrain the width slightly to prevent text from touching the key's edges */
+    width: 100%;
+    margin: 0 auto; /* Center the element */
+    padding-bottom: 2px; /* Ensures a small gap below the description */
+}
+
+/* --- NEW: Container for the two labels to sit side-by-side --- */
+.key-labels-container {
+    display: flex;
+    justify-content: center;
+    align-items: baseline; /* Aligns text of different sizes nicely */
+    width: 100%;
+}
+
+/* --- MODIFIED: Smaller primary label to make space --- */
+.primary-label {
+    font-size: 16px; /* Slightly larger is okay with new layout */
+    font-weight: bold;
+    color: #333;
+    margin-right: 6px; /* Space between primary and secondary */
+}
+
+/* --- MODIFIED: Removed top margin --- */
+.secondary-label {
+    font-size: 14px;
+    color: rgb(0, 0, 179);
+}
+
+/* --- Key State Styling (Unchanged logic, just for context) --- */
+.keyboard-key.assigned {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    box-shadow: 0 2px 0 #a5c6ad;
+}
+.keyboard-key.assigned .primary-label {
+    color: #155724;
+}
+.keyboard-key.assigned .key-description { /* Description color for assigned keys */
+    color: #155724; 
+}
+
+
+.keyboard-key.editing {
+    background-color: #cce5ff;
+    border-color: #b8daff;
+    box-shadow: 0 2px 0 #9fcdff;
+    transform: translateY(1px);
+}
+
+.keyboard-key.reserved {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    box-shadow: 0 2px 0 #d9a4ab;
+}
+.keyboard-key.reserved .primary-label,
+.keyboard-key.reserved .secondary-label {
+    color: #721c24;
+}
+.keyboard-key.reserved .key-description { /* Description color for reserved keys */
+    color: #721c24; 
+}
+
+
+/* ======================================= */
+/*          SCRIPT EDITOR & FOOTER         */
+/* ======================================= */
+#script-editor {
+    flex-grow: 1;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: monospace;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 10px;
+    resize: none; /* Disable manual resizing */
+}
+
+#editor-container {
+    display: flex;
+    flex-grow: 1;
+    gap: 15px; /* Adds space between the editors */
+    min-height: 0;
+}
+
+.editor-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex-basis: 50%; /* Each editor takes up half the space */
+}
+
+/* Make both text areas fill the available space */
+#script-editor-down, #script-editor-up {
+    flex-grow: 1;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: monospace;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 10px;
+    resize: none;
+}
+
+
+/* ======================================= */
+/*          PROCESS SELECTOR MODAL         */
+/* ======================================= */
+
+.modal-overlay {
+    position: fixed; /* Sits on top of everything */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* Ensures it's on top */
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 80%;
+    max-width: 500px;
+    height: 70%;
+    display: flex;
+    flex-direction: column;
+}
+
+#modal-process-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 5px;
+}
+
+.process-item {
+    padding: 8px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.process-item:hover {
+    background-color: #f0f0f0;
+}
+
+
+
+#footer {
+    border-top: 1px solid #ccc;
+    padding: 10px;
+    background-color: #f1f1f1;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0; /* Prevent footer from shrinking */
+}
+
+#status-message {
+    margin: 0;
+    margin-left: 20px;
+    font-weight: bold;
+}
+
+
+/* --- NEW STYLES for Program List Name Display --- */
+.program-name-wrapper {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.program-display-name {
+    font-weight: bold;
+}
+
+.program-internal-name {
+    font-size: 11px;
+    color: #6c757d; /* A nice muted gray */
+    font-style: italic;
+}
+
+.program-item.selected .program-internal-name {
+    color: #f0f0f0; /* Lighter gray for better contrast on the blue background */
+}

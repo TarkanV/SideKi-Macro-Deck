@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+     <meta charset="UTF-8" />
+    <!--
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'"
+    />
+    <meta
+      http-equiv="X-Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'"
+    />
+    -->
+    
+    <title>Side-Ki Deck</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="script.js" defer></script>
+</head>
+<body>
+    <div id="main-container">
+        <!-- ============================================= -->
+        <!--             LEFT SECTION: PROGRAM LIST        -->
+        <!-- ============================================= -->
+        <div id="program-list-container">
+            <h2>Programs</h2>
+            <div id="program-list">
+                <!-- Program items will be generated here by script.js -->
+            </div>
+            <button id="add-program-btn">Add Program</button>
+            <button id="add-process-btn">Add from Processes</button>
+        </div>
+
+        <!-- ============================================= -->
+        <!--             RIGHT SECTION: EDITOR             -->
+        <!-- ============================================= -->
+        <div id="profile-editor-container">
+            <h2>Editor for: <span id="current-program-name"></span></h2>
+
+            <!-- Main grid container for the editor controls -->
+            <div id="editor-grid">
+
+                <!-- LEFT COLUMN OF THE GRID -->
+                <div id="profile-controls">
+                    <!-- Profile Selection -->
+                    <div>
+                        <label for="mapping-profile-select"><strong>Default Active Profile:</strong></label>
+                        <select id="mapping-profile-select"></select>
+                        <button id="add-profile-btn">+</button>
+                        <button id="delete-profile-btn">-</button>
+                    </div>
+                    
+                    <!-- Hotkey Cycle Option -->
+                    <fieldset>
+                        <legend>Profile Cycling Hotkey (Optional)</legend>
+                        <input type="checkbox" id="enable-cycle-hotkey">
+                        <label for="enable-cycle-hotkey">Enable Hotkey</label>
+                        <input type="text" id="cycle-hotkey-input" placeholder="e.g., ^!p" disabled>
+                        <span id="hotkey-conflict-warning" style="color: red; font-weight: bold;"></span>
+                    </fieldset>
+                </div>
+
+                <!-- RIGHT COLUMN OF THE GRID -->
+                <div id="program-specific-settings">
+                    <fieldset>
+                        <legend>Program Configuration</legend>
+                        <div>
+                            <strong>Path:</strong> <span id="program-path-display"></span>
+                            <button id="change-path-btn">Change</button>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <label for="window-title-input"><strong>Window Title (Optional):</strong></label><br>
+                            <input type="text" id="window-title-input" placeholder="e.g., Document Name" style="width: 95%;">
+                        </div>
+                    </fieldset>
+                </div>
+
+                <!-- FULL-WIDTH AREA SPANNING BOTH COLUMNS -->
+                <div id="keyboard-and-editor-area">
+                     <div id="virtual-keyboard">
+                         <!-- Keyboard will be generated here by script.js -->
+                     </div>
+                     <hr>
+                     <div id="editor-container">
+                        <div class="editor-wrapper">
+                            <label for="script-editor-down"><strong>Code for Key Down: </strong><span id="current-key-name-down">None</span></label>
+                            <textarea id="script-editor-down" placeholder="Click a key..." disabled></textarea>
+                        </div>
+                        <div class="editor-wrapper">
+                            <label for="script-editor-up"><strong>Code for Key Up (Release):</strong></label>
+                            <textarea id="script-editor-up" placeholder="Click a key..." disabled></textarea>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div id="process-modal" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h2>Select a Running Process</h2>
+              <div id="modal-loader" style="display: none;">Loading...</div>
+              <div id="modal-process-list">
+                  <!-- Process list will be generated here -->
+              </div>
+              <button id="modal-close-btn">Cancel</button>
+          </div>
+      </div>
+    </div>
+
+    <!-- ============================================= -->
+    <!--                   FOOTER BAR                  -->
+    <!-- ======================================================= -->
+    <div id="footer">
+      <button id="save-btn">Save & Generate</button>
+      <button id="run-btn" title="Run the generated AHK script">Run</button>
+      <button id="reload-btn" title="Stop the old script and run the new one">Reload</button>
+        <button id="stop-all-btn" title="Closes the AHK script and the MultiKB process">Stop All</button>
+      <p id="status-message"></p>
+    </div>
+</body>
+</html>
