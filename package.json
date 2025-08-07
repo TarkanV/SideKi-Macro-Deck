@@ -1,0 +1,27 @@
+{
+  "name": "side-ki-deck",
+  "version": "1.0.0",
+  "description": "AutoHotKey and MultiKB Gui tool ",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TarkanV/SideKi-Macro-Deck.git"
+  },
+  "keywords": [
+    "keyboard",
+    "macro",
+    "autohotkey"
+  ],
+  "author": "TarkanV",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TarkanV/SideKi-Macro-Deck/issues"
+  },
+  "homepage": "https://github.com/TarkanV/SideKi-Macro-Deck#readme",
+  "devDependencies": {
+    "electron": "^38.0.0-beta.1"
+  }
+}
