@@ -2,6 +2,8 @@
 config/user-settings.json
 config/user-settings.ahk
 
+
+
 # Logs
 logs
 *.log

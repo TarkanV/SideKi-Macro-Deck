@@ -145,6 +145,23 @@ button {
     transition: visibility 0s, opacity 0.1s linear;
 }
 
+.path-input {
+   width: 100;
+   display: grid;
+   grid-template-columns: min-content 1fr min-content;
+   align-items: center;
+}
+.path-input > strong {
+    margin-right: 5px;
+}
+
+#program-path-display{
+    white-space: nowrap; 
+      /* Prevents overflow */
+    overflow: hidden;      /* Hides overflow text */
+    text-overflow: ellipsis; /* Adds "..." for overflow */
+}
+
 #keyboard-and-editor-area {
     grid-column: 1 / 3; /* Span across both columns */
     grid-row: 2 / 3;
@@ -316,6 +333,7 @@ button {
 
 /* Make both text areas fill the available space */
 #script-editor-down, #script-editor-up {
+    outline-color: #007bff; 
     flex-grow: 1;
     width: 100%;
     box-sizing: border-box;
@@ -326,6 +344,8 @@ button {
     padding: 10px;
     resize: none;
 }
+
+
 
 
 /* ======================================= */
@@ -410,4 +430,59 @@ button {
 
 .program-item.selected .program-internal-name {
     color: #f0f0f0; /* Lighter gray for better contrast on the blue background */
+}
+
+
+
+/* In style.css */
+
+.program-item {
+    position: relative; /* Needed for positioning the input */
+    padding: 8px; /* Give it some space */
+}
+
+.program-name-wrapper {
+    /* This contains your spans and will be hidden during edit */
+    line-height: 1.5;
+}
+
+.program-display-name {
+    font-weight: bold;
+}
+.program-internal-name {
+    font-size: 0.8em;
+    color: #666;
+    margin-left: 5px;
+}
+
+/* This is the input field that will be shown on top for editing */
+.program-rename-input {
+    /* Make it fill the parent and sit on top */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: calc(100% - 40px); /* Fill width, leaving space for the 'X' button */
+    height: 100%;
+    
+    /* Make it look like the background until it's active */
+    background: transparent;
+    border: 1px solid transparent; /* Start with a transparent border */
+    
+    /* Hide it from view and clicks initially */
+    display: none;
+
+    /* Match the font of the display name */
+    font-size: inherit;
+    font-weight: bold;
+    font-family: inherit;
+    padding: 8px;
+    box-sizing: border-box; /* Ensures padding is included in width/height */
+}
+
+/* This class will be added to make the input visible and editable */
+.program-rename-input.editing {
+    display: block; /* Show the input */
+    background: white;
+    border: 1px solid #007bff; /* A blue border to indicate editing */
+    z-index: 10; /* Ensure it's on top of the text */
 }
