@@ -22,62 +22,17 @@ const AHK_EXE_PATH = appInfo.ahkPath;
 const MULTIKB_EXE_PATH = path.join(DEPS_DIR, "MKB\\MultiKB_For_AutoHotkey.exe");
 
 const KEYBOARD_LAYOUT = [
-  [
-    { p: "`", s: "`" },
-    { p: "1", s: "1" },
-    { p: "2", s: "2" },
-    { p: "3", s: "3" },
-    { p: "4", s: "4" },
-    { p: "5", s: "5" },
-    { p: "6", s: "6" },
-    { p: "7", s: "7" },
-    { p: "8", s: "8" },
-    { p: "9", s: "9" },
-    { p: "0", s: "0" },
-    { p: "-", s: "-" },
-  ],
-
-  [
-    { p: "Q", s: "q" },
-    { p: "W", s: "w" },
-    { p: "E", s: "e" },
-    { p: "R", s: "r" },
-    { p: "T", s: "t" },
-    { p: "Y", s: "y" },
-    { p: "U", s: "u" },
-    { p: "I", s: "i" },
-    { p: "O", s: "o" },
-    { p: "P", s: "p" },
-    { p: "[", s: "[" },
-    { p: "]", s: "]" },
-  ],
-
-  [
-    { p: "Tab", s: "Tab" },
-    { p: "A", s: "a" },
-    { p: "S", s: "s" },
-    { p: "D", s: "d" },
-    { p: "F", s: "f" },
-    { p: "G", s: "g" },
-    { p: "H", s: "h" },
-    { p: "J", s: "j" },
-    { p: "K", s: "k" },
-    { p: "L", s: "l" },
-  ],
-
-  [
-    { p: "Space", s: "Space" },
-    { p: "Z", s: "z" },
-    { p: "X", s: "x" },
-    { p: "C", s: "c" },
-    { p: "V", s: "v" },
-    { p: "B", s: "b" },
-    { p: "N", s: "n" },
-    { p: "M", s: "m" },
-    { p: ",", s: "," },
-    { p: ".", s: "." },
-    { p: "/", s: "/" },
-  ],
+    [{ p: "Esc", s: "Escape", disabled: true }, { p: "F1", s: "F1" }, { p: "F2", s: "F2" }, { p: "F3", s: "F3" }, { p: "F4", s: "F4" }, { p: "F5", s: "F5" }, { p: "F6", s: "F6" }, { p: "F7", s: "F7" }, { p: "F8", s: "F8" }, { p: "F9", s: "F9" }, { p: "F10", s: "F10" }, { p: "F11", s: "F11" }, { p: "F12", s: "F12" }],
+    
+    [{ p: "`", s: "`" }, { p: "1", s: "1" }, { p: "2", s: "2" }, { p: "3", s: "3" }, { p: "4", s: "4" }, { p: "5", s: "5" }, { p: "6", s: "6" }, { p: "7", s: "7" }, { p: "8", s: "8" }, { p: "9", s: "9" }, { p: "0", s: "0" }, { p: "-", s: "-" }],
+    
+    [{ p: "Tab", s: "Tab" }, { p: "Q", s: "q" }, { p: "W", s: "w" }, { p: "E", s: "e" }, { p: "R", s: "r" }, { p: "T", s: "t" }, { p: "Y", s: "y" }, { p: "U", s: "u" }, { p: "I", s: "i" }, { p: "O", s: "o" }, { p: "P", s: "p" }, { p: "[", s: "[" }, { p: "]", s: "]" }],
+    
+    [{ p: "Caps", s: "CapsLock", disabled: true }, { p: "A", s: "a" }, { p: "S", s: "s" }, { p: "D", s: "d" }, { p: "F", s: "f" }, { p: "G", s: "g" }, { p: "H", s: "h" }, { p: "J", s: "j" }, { p: "K", s: "k" }, { p: "L", s: "l" }],
+    
+    [{ p: "Shift", s: "LShift" }, { p: "Z", s: "z" }, { p: "X", s: "x" }, { p: "C", s: "c" }, { p: "V", s: "v" }, { p: "B", s: "b" }, { p: "N", s: "n" }, { p: "M", s: "m" }, { p: ",", s: "," }, { p: ".", s: "." }, { p: "/", s: "/" }],
+    
+    [{ p: "Ctrl", s: "LControl" }, { p: "Alt", s: "LAlt" }, { p: "Space", s: "Space" }, { p: "Alt", s: "RAlt", disabled: true }, { p: "Ctrl", s: "RControl", disabled: true }]
 ];
 
 const defaultData = {
@@ -198,32 +153,30 @@ const stopAllProcesses = async () => {
   isEnabled = false;
 };
 
-// --- MODIFIED: Added a span for the key description ---
-// --- MODIFIED: Creates a new structure for labels to sit side-by-side ---
 function renderVirtualKeyboard() {
-  const keyboardContainer = document.getElementById("virtual-keyboard");
-  keyboardContainer.innerHTML = "";
-  KEYBOARD_LAYOUT.forEach((row) => {
-    const rowDiv = document.createElement("div");
-    rowDiv.className = "keyboard-row";
-    row.forEach((keyData) => {
-      const keyDiv = document.createElement("div");
-      keyDiv.className = "keyboard-key";
-      keyDiv.dataset.keyName = keyData.s;
+    const keyboardContainer = document.getElementById('virtual-keyboard');
+    const rowTemplate = document.getElementById('keyboard-row-template');
+    const keyTemplate = document.getElementById('keyboard-key-template');
+    
+    keyboardContainer.innerHTML = '';
 
-      // NEW STRUCTURE:
-      // - A span for the description at the top.
-      // - A container for the two labels below it.
-      keyDiv.innerHTML = `
-                <span class="key-description"></span>
-                <div class="key-labels-container">
-                    <span class="primary-label">${keyData.p}</span>
-                </div>`;
+    KEYBOARD_LAYOUT.forEach(rowLayout => {
+        const rowClone = rowTemplate.content.cloneNode(true);
+        const rowDiv = rowClone.querySelector('.keyboard-row');
 
-      rowDiv.appendChild(keyDiv);
+        rowLayout.forEach(keyData => {
+            const keyClone = keyTemplate.content.cloneNode(true);
+            const keyDiv = keyClone.querySelector('.keyboard-key');
+            const primaryLabel = keyClone.querySelector('.primary-label');
+
+            keyDiv.dataset.keyName = keyData.s;
+            primaryLabel.textContent = keyData.p;
+            
+            rowDiv.appendChild(keyClone);
+        });
+
+        keyboardContainer.appendChild(rowClone);
     });
-    keyboardContainer.appendChild(rowDiv);
-  });
 }
 
 function extractDescriptionFromScript(script) {
@@ -241,148 +194,144 @@ function extractDescriptionFromScript(script) {
 // In script.js
 
 async function showProcessList() {
-  const modal = document.getElementById("process-modal");
-  const loader = document.getElementById("modal-loader");
-  const processListDiv = document.getElementById("modal-process-list");
+    const modal = document.getElementById('process-modal');
+    const loader = document.getElementById('modal-loader');
+    const processListDiv = document.getElementById('modal-process-list');
+    const template = document.getElementById('process-item-template'); // Reference the template
 
-  // --- Start: Make it look nicer ---
-  // Inject the CSS styles directly into the document's head if they don't already exist.
-  // This keeps everything self-contained in this function.
-  if (!document.getElementById("process-list-styles")) {
-    const style = document.createElement("style");
-    style.id = "process-list-styles";
-    style.innerHTML = `
+    // --- Start: Your existing setup code (UNCHANGED) ---
+    if (!document.getElementById('process-list-styles')) {
+        const style = document.createElement('style');
+        style.id = 'process-list-styles';
+        style.innerHTML = `
             #modal-process-list { overflow-y: auto; border: 1px solid #ccc; border-radius: 5px; padding: 5px; }
             .process-item { display: flex; align-items: center; padding: 8px 10px; cursor: pointer; border-radius: 4px; transition: background-color 0.2s; user-select: none; }
             .process-item:hover { background-color: #e9e9e9; }
             .process-icon { width: 24px; height: 24px; margin-right: 12px; }
             .process-name { font-size: 14px; color: #333; }
         `;
-    document.head.appendChild(style);
-  }
-  // --- End: Make it look nicer ---
-
-  modal.style.display = "flex";
-  loader.style.display = "block";
-  processListDiv.innerHTML = "";
-
-  // Your existing execPromise function.
-  const execPromise = (command) =>
-    new Promise((resolve, reject) => {
-      exec(command, (error, stdout) => {
-        if (error) return reject(error);
-        resolve(stdout);
-      });
+        document.head.appendChild(style);
+    }
+    modal.style.display = 'flex';
+    loader.style.display = 'block';
+    processListDiv.innerHTML = '';
+    const execPromise = (command) => new Promise((resolve, reject) => {
+        exec(command, (error, stdout) => {
+            if (error) return reject(error);
+            resolve(stdout);
+        });
     });
+    // --- End: Your existing setup code (UNCHANGED) ---
 
-  try {
-    // Your logic to get the process list.
-    let processes = [];
-    if (process.platform === "win32") {
-      // We need to get the executable path to fetch the icon.
-      const stdout = await execPromise(
-        'wmic process where "ExecutablePath is not null" get ExecutablePath,Name /format:csv'
-      );
-      const lines = stdout.trim().split("\n").slice(1); // Skip header row
-      const uniqueProcs = new Map();
-      lines.forEach((line) => {
-        const parts = line.split(",");
-        const exePath = parts[1]?.trim();
-        const exeName = parts[2]?.trim();
-        if (exeName && exeName.endsWith(".exe") && !uniqueProcs.has(exeName)) {
-          uniqueProcs.set(exeName, { name: exeName, path: exePath });
+    try {
+        // --- Start: Your existing data-fetching code (UNCHANGED) ---
+        let processes = [];
+        if (process.platform === 'win32') {
+            const stdout = await execPromise('wmic process where "ExecutablePath is not null" get ExecutablePath,Name /format:csv');
+            const lines = stdout.trim().split('\n').slice(1);
+            const uniqueProcs = new Map();
+            lines.forEach(line => {
+                const parts = line.split(',');
+                const exePath = parts[1]?.trim();
+                const exeName = parts[2]?.trim();
+                if (exeName && exeName.endsWith('.exe') && !uniqueProcs.has(exeName)) {
+                    uniqueProcs.set(exeName, { name: exeName, path: exePath });
+                }
+            });
+            processes = Array.from(uniqueProcs.values()).sort((a, b) => a.name.localeCompare(b.name));
         }
-      });
-      processes = Array.from(uniqueProcs.values()).sort((a, b) =>
-        a.name.localeCompare(b.name)
-      );
+        // --- End: Your existing data-fetching code (UNCHANGED) ---
+
+        if (processes.length === 0) {
+            processListDiv.textContent = 'No running application processes found.';
+            return;
+        }
+
+        // --- Start: NEW TEMPLATE-BASED RENDERING LOGIC ---
+        const fragment = document.createDocumentFragment();
+        for (const proc of processes) {
+            const clone = template.content.cloneNode(true);
+            const item = clone.querySelector('.process-item');
+            const iconImg = clone.querySelector('.process-icon');
+            const nameSpan = clone.querySelector('.process-name');
+
+            item.dataset.exeName = proc.name;
+            nameSpan.textContent = proc.name;
+
+            // This is the correct way to await inside a loop without blocking.
+            // We invoke and then handle the promise for each icon individually.
+            ipcRenderer.invoke("get-icon-for-path", proc.path).then(iconURL => {
+                if (iconURL) {
+                    iconImg.src = iconURL;
+                }
+            });
+            
+            fragment.appendChild(clone);
+        }
+        processListDiv.appendChild(fragment);
+        // --- End: NEW TEMPLATE-BASED RENDERING LOGIC ---
+
+    } catch (error) {
+        processListDiv.textContent = `Error fetching processes: ${error.message}`;
+        console.error(error);
+    } finally {
+        loader.style.display = 'none';
     }
-    // ... (your Mac/Linux fallback could be added here if needed) ...
-
-    if (processes.length === 0) {
-      processListDiv.textContent = "No running application processes found.";
-      return;
-    }
-
-    // Loop through the processes and build the new UI for each one.
-    for (const proc of processes) {
-      const item = document.createElement("div");
-      item.className = "process-item";
-      item.dataset.exeName = proc.name;
-
-      const iconImg = document.createElement("img");
-      iconImg.className = "process-icon";
-      // Here is where we use the tiny bridge to get the icon.
-      iconImg.src =
-        (await ipcRenderer.invoke("get-icon-for-path", proc.path)) || "";
-
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "process-name";
-      nameSpan.textContent = proc.name;
-
-      item.appendChild(iconImg);
-      item.appendChild(nameSpan);
-
-      processListDiv.appendChild(item);
-    }
-  } catch (error) {
-    processListDiv.textContent = `Error fetching processes: ${error.message}`;
-    console.error(error);
-  } finally {
-    loader.style.display = "none";
-  }
 }
 
+
 function renderProgramList() {
-  const programListDiv = document.getElementById("program-list");
-  programListDiv.innerHTML = "";
+    const programListDiv = document.getElementById('program-list');
+    const template = document.getElementById('program-item-template');
+    programListDiv.innerHTML = '';
 
-  for (const progName in programProfiles) {
-    const program = programProfiles[progName];
-    const item = document.createElement("div");
-    item.className = "program-item";
-    item.dataset.programName = progName;
-    if (progName === selectedProgramName) {
-      item.classList.add("selected");
+    for (const progName in programProfiles) {
+        const program = programProfiles[progName];
+        
+        const clone = template.content.cloneNode(true);
+        const item = clone.querySelector('.program-item');
+        const iconImg = clone.querySelector('.program-list-icon');
+        const displayNameSpan = clone.querySelector('.program-display-name');
+        const internalNameSpan = clone.querySelector('.program-internal-name');
+        const renameInput = clone.querySelector('.program-rename-input');
+        const deleteBtn = clone.querySelector('.delete-btn');
+
+        item.dataset.programName = progName;
+        if (progName === selectedProgramName) {
+            item.classList.add('selected');
+        }
+
+        // The new logic with the special case for Global
+
+        // --- START: Icon Logic ---
+        if (progName === 'Global') {
+            // If it's the Global profile, use the local global.png file.
+            iconImg.src = './global.png'; 
+            iconImg.style.backgroundColor = 'transparent';
+        } else if (program.path) {
+            // For all other programs, use the existing cache-first fetching logic.
+            ipcRenderer.invoke('get-icon-for-path', program.path).then(iconDataURL => {
+                if (iconDataURL) {
+                    iconImg.src = iconDataURL;
+                    iconImg.style.backgroundColor = 'transparent';
+                }
+            });
+        }
+
+        
+        displayNameSpan.textContent = program.displayName || progName;
+        renameInput.value = program.displayName || progName;
+
+        if (program.displayName && program.displayName !== progName) {
+            internalNameSpan.textContent = ` [${progName}]`;
+        }
+        
+        if (progName === 'Global') {
+            deleteBtn.remove();
+        }
+
+        programListDiv.appendChild(clone);
     }
-
-    // --- NEW STRUCTURE ---
-    // 1. Create the wrapper for the display text (spans)
-    const nameWrapper = document.createElement("div");
-    nameWrapper.className = "program-name-wrapper";
-
-    const displayNameSpan = document.createElement("span");
-    displayNameSpan.className = "program-display-name";
-    displayNameSpan.textContent = program.displayName || progName;
-    nameWrapper.appendChild(displayNameSpan);
-
-    const internalNameSpan = document.createElement("span");
-    internalNameSpan.className = "program-internal-name";
-    if (program.displayName && program.displayName !== progName) {
-      internalNameSpan.textContent = ` [${progName}]`;
-    }
-    nameWrapper.appendChild(internalNameSpan);
-
-    // 2. Create the hidden input field for editing
-    const renameInput = document.createElement("input");
-    renameInput.type = "text";
-    renameInput.className = "program-rename-input";
-    renameInput.value = program.displayName || progName;
-
-    // Add both to the main item div
-    item.appendChild(nameWrapper);
-    item.appendChild(renameInput);
-    // --- END OF NEW STRUCTURE ---
-
-    if (progName !== "Global") {
-      const deleteBtn = document.createElement("button");
-      deleteBtn.textContent = "X";
-      deleteBtn.className = "delete-btn";
-      deleteBtn.style.float = "right";
-      item.appendChild(deleteBtn);
-    }
-    programListDiv.appendChild(item);
-  }
 }
 // In script.js, REPLACE your entire renderProfileDetails function with this new one:
 

@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
-     <meta charset="UTF-8" />
+    <meta charset="UTF-8" />
     <!--
     <meta
       http-equiv="Content-Security-Policy"
@@ -13,78 +14,101 @@
       content="default-src 'self'; script-src 'self'"
     />
     -->
-    
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+
     <title>Side-Ki Deck</title>
     <link rel="stylesheet" href="style.css">
     <script type="module" src="script.js" defer></script>
 </head>
+
 <body>
     <div id="main-container">
         <!-- ============================================= -->
         <!--             LEFT SECTION: PROGRAM LIST        -->
         <!-- ============================================= -->
         <div id="program-list-container">
-            <h2>Programs</h2>
+            <h2 id="program-list-header">
+                <img src="apps.png" alt="Apps" class="header-icon">
+                <span class="header-title">Programs</span>
+            </h2>
             <div id="program-list">
                 <!-- Program items will be generated here by script.js -->
             </div>
-            <button id="add-program-btn">Add Program</button>
-            <button id="add-process-btn">Add from Processes</button>
+            <button id="add-process-btn">
+                <span class="material-symbols-outlined">add_box</span>
+                <span class="button-text">Add from Processes</span>
+            </button>
+            <button id="add-program-btn">
+                <span class="material-symbols-outlined">add_card</span>
+                <span class="button-text">Add Program</span>
+            </button>
         </div>
 
         <!-- ============================================= -->
         <!--             RIGHT SECTION: EDITOR             -->
         <!-- ============================================= -->
         <div id="profile-editor-container">
-            <h2>Editor for: <span id="current-program-name"></span></h2>
+            <h2 style="margin : 0; padding-bottom: 2px;"><span id="current-program-name"></span></h2>
 
             <!-- Main grid container for the editor controls -->
             <div id="editor-grid">
 
-                <!-- LEFT COLUMN OF THE GRID -->
-                <div id="profile-controls">
-                    <!-- Profile Selection -->
-                    <div>
-                        <label for="mapping-profile-select"><strong>Default Active Profile:</strong></label>
-                        <select id="mapping-profile-select"></select>
-                        <button id="add-profile-btn">+</button>
-                        <button id="delete-profile-btn">-</button>
-                    </div>
-                    
-                    <!-- Hotkey Cycle Option -->
-                    <fieldset>
-                        <legend>Profile Cycling Hotkey (Optional)</legend>
-                        <input type="checkbox" id="enable-cycle-hotkey">
-                        <label for="enable-cycle-hotkey">Enable Hotkey</label>
-                        <input type="text" id="cycle-hotkey-input" placeholder="e.g., ^!p" disabled>
-                        <span id="hotkey-conflict-warning" style="color: red; font-weight: bold;"></span>
-                    </fieldset>
-                </div>
+                <div id="program-options-grid">
+                    <!-- LEFT COLUMN OF THE GRID -->
 
-                <!-- RIGHT COLUMN OF THE GRID -->
-                <div id="program-specific-settings">
-                    <fieldset>
-                        <legend>Program Configuration</legend>
-                        <div class="path-input">
-                            <strong>Path:</strong> <span id="program-path-display"></span>
-                            <button id="change-path-btn">Change</button>
+                    <div id="profile-controls">
+                        <!-- Profile Selection -->
+                        <div id="mapping-profile-controls">
+                            <label for="mapping-profile-select"><strong>Profile:</strong></label>
+                            <select id="mapping-profile-select"></select>
+                            <div>
+                                <button id="add-profile-btn">+</button>
+                                <button id="delete-profile-btn">-</button>
+                            </div>
                         </div>
-                        <div style="margin-top: 10px;">
-                            <label for="window-title-input"><strong>Window Title (Optional):</strong></label><br>
-                            <input type="text" id="window-title-input" placeholder="e.g., Document Name" style="width: 95%;">
+
+                        <!-- Hotkey Cycle Option -->
+                        <div id="hotkey-cycle-option">
+
+                            <input type="checkbox" id="enable-cycle-hotkey">
+                            <label for="enable-cycle-hotkey">Cycling Key</label>
+                            <input type="text" id="cycle-hotkey-input" placeholder="e.g., ^!p" disabled>
+                            <span id="hotkey-conflict-warning" style="color: red; font-weight: bold;"></span>
                         </div>
-                    </fieldset>
+                    </div>
+
+                    <!-- RIGHT COLUMN OF THE GRID -->
+                    <div id="program-specific-settings">
+                        <div id="program-config">
+
+                            <div class="path-input"  >
+                                <div  style=" display : flex; align-items: center; justify-content: space-between;">
+                                    <strong>Path:</strong> <button id="change-path-btn" style="font-size: 0.8rem; padding : 4px 4px;">Change</button>
+                                </div>   
+                                <div id="program-path-display" ></div>
+                                
+                            </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <label for="window-title-input" style="padding: 3px 2px;"><strong>Window Title:</strong></label>
+                                <input type="text" id="window-title-input" placeholder="(Optional) e.g., Document Name"
+                                    style="width: 95%;">
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- FULL-WIDTH AREA SPANNING BOTH COLUMNS -->
                 <div id="keyboard-and-editor-area">
-                     <div id="virtual-keyboard">
-                         <!-- Keyboard will be generated here by script.js -->
-                     </div>
-                     <hr>
-                     <div id="editor-container">
+                    <div id="virtual-keyboard">
+                        <!-- Keyboard will be generated here by script.js -->
+                    </div>
+                    
+                    <div id="editor-container">
                         <div class="editor-wrapper">
-                            <label for="script-editor-down"><strong>Code for Key Down: </strong><span id="current-key-name-down">None</span></label>
+                            <label for="script-editor-down"><strong>Code for Key Down: </strong><span
+                                    id="current-key-name-down">None</span></label>
                             <textarea id="script-editor-down" placeholder="Click a key..." disabled></textarea>
                         </div>
                         <div class="editor-wrapper">
@@ -97,26 +121,74 @@
             </div>
         </div>
         <div id="process-modal" class="modal-overlay" style="display: none;">
-          <div class="modal-content">
-              <h2>Select a Running Process</h2>
-              <div id="modal-loader" style="display: none;">Loading...</div>
-              <div id="modal-process-list">
-                  <!-- Process list will be generated here -->
-              </div>
-              <button id="modal-close-btn">Cancel</button>
-          </div>
-      </div>
+            <div class="modal-content">
+                <h2>Select a Running Process</h2>
+                <div id="modal-loader" style="display: none;">Loading...</div>
+                <div id="modal-process-list">
+                    <!-- Process list will be generated here -->
+                </div>
+                <button id="modal-close-btn">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <!-- ============================================= -->
     <!--                   FOOTER BAR                  -->
     <!-- ======================================================= -->
     <div id="footer">
-      <button id="save-btn">Save & Generate</button>
-      <button id="run-btn" title="Run the generated AHK script">Run</button>
-      <button id="reload-btn" title="Stop the old script and run the new one">Reload</button>
+        <button id="save-btn">Save & Generate</button>
+        <button id="run-btn" title="Run the generated AHK script">Run</button>
+        <button id="reload-btn" title="Stop the old script and run the new one">Reload</button>
         <button id="stop-all-btn" title="Closes the AHK script and the MultiKB process">Stop All</button>
-      <p id="status-message"></p>
+        <p id="status-message"></p>
     </div>
+
+
+    <!-- ============================================= -->
+    <!--                 HTML TEMPLATES                -->
+    <!-- ============================================= -->
+
+    <!-- Template for an item in the main program list -->
+    <template id="program-item-template">
+        <div class="program-item">
+
+            <div class="program-name" style="display: flex;">
+                <img class="program-list-icon">
+                <div class="program-name-wrapper">
+                    <span class="program-display-name"></span>
+                    <span class="program-internal-name"></span>
+                </div>
+            </div>
+
+            <input type="text" class="program-rename-input">
+
+            <button class="delete-btn" style="float: right;">X</button>
+        </div>
+    </template>
+
+    <!-- Template for an item in the 'Add from Processes' modal -->
+    <template id="process-item-template">
+        <div class="process-item">
+            <img class="process-icon">
+            <span class="process-name"></span>
+        </div>
+    </template>
+
+    <!-- Template for a single row in the virtual keyboard -->
+    <template id="keyboard-row-template">
+        <div class="keyboard-row"></div>
+    </template>
+
+    <!-- Template for a single key in the virtual keyboard -->
+    <template id="keyboard-key-template">
+        <div class="keyboard-key">
+            <span class="key-description"></span>
+            <div class="key-labels-container">
+                <span class="primary-label"></span>
+            </div>
+        </div>
+    </template>
+
 </body>
+
 </html>

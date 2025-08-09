@@ -53,20 +53,36 @@ button {
 /* ======================================= */
 /*          MAIN LAYOUT & PANELS           */
 /* ======================================= */
+/* Find this rule */
 #main-container {
     display: flex;
     flex-grow: 1;
     overflow: hidden;
+    position: relative; /* <-- ADD THIS LINE */
 }
-
+/* Replace your existing #program-list-container rule with this block */
 #program-list-container {
+    position: absolute; /* Lifts the panel to allow it to overlay content */
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;      /* Ensures it sits on top of the editor */
+    
+    width: 35px;        /* Start in the COLLAPSED state */
     border-right: 1px solid #ccc;
     padding: 10px;
-    width: 220px;
-    flex-shrink: 0; /* Prevent this column from shrinking */
     display: flex;
     flex-direction: column;
     background-color: #f7f7f7;
+    overflow: hidden;   /* Hide text that overflows when collapsed */
+
+    transition: width 0.2s ease-out; /* Smooth animation for width changes */
+}
+
+/* Add this new rule anywhere in your CSS */
+#program-list-container:hover {
+    width: 220px; /* Expanded width */
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15); /* Add a shadow for better overlay effect */
 }
 
 #program-list {
@@ -74,6 +90,39 @@ button {
     overflow-y: auto;
     margin-bottom: 10px;
 }
+
+/* Add these new rules anywhere in your CSS */
+#program-list-header {
+    display: flex;
+    align-items: center;
+    user-select: none; /* Prevent accidentally selecting the header text */
+    flex-shrink: 0;    /* Prevent the header from shrinking */
+}
+
+.header-icon {
+    width: 24px;
+    height: 24px;
+    padding : 0 6px;
+}
+
+/* By default, hide text content with opacity for a smooth fade */
+.header-title,
+.program-name-wrapper,
+.delete-btn {
+    opacity: 0;
+    transition: opacity 0.1s ease-out;
+    pointer-events: none; /* Disable mouse interactions when invisible */
+}
+
+/* When the container is hovered, fade the text content back in */
+#program-list-container:hover .header-title,
+#program-list-container:hover .program-name-wrapper,
+#program-list-container:hover .delete-btn {
+    opacity: 1;
+    transition: opacity 0.2s ease-in 0.1s; /* Fade in with a slight delay */
+    pointer-events: auto; /* Re-enable mouse interactions */
+}
+
 
 .program-item {
     padding: 8px;
@@ -86,6 +135,16 @@ button {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+
+.program-list-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    background-color: #f0f0f0; /* Placeholder color */
+    border-radius: 3px;
+    flex-shrink: 0;
 }
 
 .program-item.selected {
@@ -113,12 +172,57 @@ button {
     color: #dc3545; /* Red on hover */
 }
 
+/* Find this rule */
 #profile-editor-container {
     padding: 15px;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+    margin-left: 65px; 
 }
+
+
+
+/* Use Flexbox for easy alignment of icon and text in buttons */
+#add-program-btn,
+#add-process-btn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Align content to the left */
+    gap: 8px; /* Adds space between the icon and text */
+}
+
+/* Style for the Material Symbols icon */
+.material-symbols-outlined {
+    font-size: 20px;
+    flex-shrink: 0; /* Prevent icon from shrinking */
+    padding : 0px 2px;
+}
+
+/* Add these new rules anywhere in style.css */
+
+/* By default (when panel is collapsed), hide the button text with opacity */
+.button-text {
+    opacity: 0;
+    transition: opacity 0.1s ease-out;
+    pointer-events: none; /* Disable mouse events on the invisible text */
+    white-space: nowrap; /* Prevent text from wrapping */
+    width : 0px;
+}
+
+/* When the container is hovered, fade the button text back in */
+#program-list-container:hover .button-text {
+    opacity: 1;
+    transition: opacity 0.2s ease-in 0.1s; /* Fade in with a delay */
+    pointer-events: auto;
+}
+
+/* When collapsed, make the buttons icon-only */
+#program-list-container:not(:hover) #add-program-btn,
+#program-list-container:not(:hover) #add-process-btn {
+  
+}
+
 
 
 /* ======================================= */
@@ -133,23 +237,62 @@ button {
     overflow: hidden;
 }
 
+#program-options-grid{
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
 #profile-controls {
-    grid-column: 1 / 2;
-    grid-row: 1 / 2;
+   
+    display : grid;
+    grid-template-columns: 1fr 1fr;
+    align-items:  center;
+}
+
+#mapping-profile-controls{
+
+    display  : grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+}
+#mapping-profile-controls > label{
+    /*grid-column: span 3;*/
+}
+
+#mapping-profile-select{
+
 }
 
 #program-specific-settings {
-    grid-column: 2 / 3;
-    grid-row: 1 / 2;
+  
     /* This is how we hide it without causing a layout shift */
     transition: visibility 0s, opacity 0.1s linear;
+   
+
+}
+#program-config{
+    display : grid;
+    grid-template-columns: 1fr 1fr;
+    justify-content: space-between;
+    gap : 0.8rem;
+
+    
+}
+
+
+#cycle-hotkey-option{
+    display : flex;
+}
+
+#cycle-hotkey-input{
+    width : 3rem;
 }
 
 .path-input {
-   width: 100;
-   display: grid;
-   grid-template-columns: min-content 1fr min-content;
-   align-items: center;
+   min-width: 100;
+  
+  
 }
 .path-input > strong {
     margin-right: 5px;
@@ -160,6 +303,7 @@ button {
       /* Prevents overflow */
     overflow: hidden;      /* Hides overflow text */
     text-overflow: ellipsis; /* Adds "..." for overflow */
+    padding : 5px;
 }
 
 #keyboard-and-editor-area {
@@ -186,11 +330,7 @@ button {
 }
 .keyboard-row:last-child { margin-bottom: 0; }
 
-/* --- Adjusted Paddings for your layout --- */
-.keyboard-row:nth-child(1){ padding-left: 3rem; }
-.keyboard-row:nth-child(2){ padding-left: 4.3rem; }
-.keyboard-row:nth-child(3){ padding-left: 0rem; }
-.keyboard-row:last-child { padding-left: 2rem; }
+
 
 /* --- MODIFIED: Key Styling --- */
 .keyboard-key {
@@ -300,6 +440,29 @@ button {
 }
 .keyboard-key.reserved .key-description { /* Description color for reserved keys */
     color: #721c24; 
+}
+
+.keyboard-key[data-key-name="Tab"] {
+    width: 100px;
+}
+
+.keyboard-key[data-key-name="CapsLock"] {
+    width: 120.5px;
+}
+
+.keyboard-key[data-key-name="LShift"] {
+    width: 150.5px;
+}
+
+.keyboard-key[data-key-name="LControl"],
+.keyboard-key[data-key-name="LAlt"],
+.keyboard-key[data-key-name="RControl"],
+.keyboard-key[data-key-name="RAlt"] {
+    width: 110px;
+}
+
+.keyboard-key[data-key-name="Space"] {
+    width: 585.5px;
 }
 
 
@@ -414,7 +577,7 @@ button {
 /* --- NEW STYLES for Program List Name Display --- */
 .program-name-wrapper {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     line-height: 1.2;
 }
 

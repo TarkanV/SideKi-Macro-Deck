@@ -189,6 +189,7 @@ ipcMain.handle('show-open-dialog', async (event, options) => {
     return result.filePaths[0];
 });
 
+const iconCache = new Map();
 
 ipcMain.handle('get-icon-for-path', async (event, path) => {
     try {
