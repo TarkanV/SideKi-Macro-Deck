@@ -31,7 +31,7 @@
         <div id="program-list-container">
             <h2 id="program-list-header">
                 <img src="apps.png" alt="Apps" class="header-icon">
-                <span class="header-title">Programs</span>
+                <span class="header-title">Apps</span>
             </h2>
             <div id="program-list">
                 <!-- Program items will be generated here by script.js -->
@@ -50,8 +50,17 @@
         <!--             RIGHT SECTION: EDITOR             -->
         <!-- ============================================= -->
         <div id="profile-editor-container">
-            <h2 style="margin : 0; padding-bottom: 2px;"><span id="current-program-name"></span></h2>
-
+            <div style="display: flex; align-items : center; justify-content: space-between; padding: 2px;">
+                <h2 style="margin : 0; padding-bottom: 2px;"><span id="current-program-name"></span></h2>
+                <span id="keyboard-view-controls">
+                        <button id="keyboard-view-switch">
+                            <span class="material-symbols-outlined">keyboard_alt</span>
+                            Keyboard/Numpad
+                        </button>
+                </span>
+            </div>
+             <!-- NEW: Keyboard view switcher and container -->
+            
             <!-- Main grid container for the editor controls -->
             <div id="editor-grid">
 
@@ -87,7 +96,7 @@
                                 <div  style=" display : flex; align-items: center; justify-content: space-between;">
                                     <strong>Path:</strong> <button id="change-path-btn" style="font-size: 0.8rem; padding : 4px 4px;">Change</button>
                                 </div>   
-                                <div id="program-path-display" ></div>
+                                <input id="program-path-display" ></input>
                                 
                             </div>
                             <div style="display: flex; flex-direction: column;">
@@ -101,8 +110,18 @@
 
                 <!-- FULL-WIDTH AREA SPANNING BOTH COLUMNS -->
                 <div id="keyboard-and-editor-area">
-                    <div id="virtual-keyboard">
-                        <!-- Keyboard will be generated here by script.js -->
+                   
+
+                    <div id="keyboard-views-container">
+                        <!-- Your original keyboard is now the 'qwerty-keyboard' -->
+                        <div id="qwerty-keyboard">
+                            <!-- Keyboard will be generated here by script.js -->
+                        </div>
+
+                        <!-- The new numpad keyboard, hidden by default -->
+                        <div id="numpad-keyboard" style="display: none;">
+                            <!-- Numpad will be generated here by script.js -->
+                        </div>
                     </div>
                     
                     <div id="editor-container">
@@ -136,10 +155,16 @@
     <!--                   FOOTER BAR                  -->
     <!-- ======================================================= -->
     <div id="footer">
-        <button id="save-btn">Save & Generate</button>
-        <button id="run-btn" title="Run the generated AHK script">Run</button>
-        <button id="reload-btn" title="Stop the old script and run the new one">Reload</button>
-        <button id="stop-all-btn" title="Closes the AHK script and the MultiKB process">Stop All</button>
+        <button id="save-btn">
+             <span class="material-symbols-outlined">save_as</span>
+            Save</button>
+        <button id="run-btn" title="Run the generated AHK script">
+            <span class="material-symbols-outlined">play_arrow</span>
+            Run</button>
+        <button id="stop-all-btn" title="Closes the AHK script and the MultiKB process">
+             <span class="material-symbols-outlined">stop</span>
+            Stop</button>
+        <!--<button id="reload-btn" title="Stop the old script and run the new one">Reload</button>-->    
         <p id="status-message"></p>
     </div>
 

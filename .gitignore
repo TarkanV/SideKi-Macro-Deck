@@ -2,6 +2,8 @@
 config/user-settings.json
 config/user-settings.ahk
 
+syntax-highlighting-guide.md
+deps/config.rar
 
 
 # Logs
