@@ -427,11 +427,24 @@ button {
     margin: 0 2px;
     border: 1px solid #999;
     border-radius: 6px;
-    background-color: #f5f5f5;
-    box-shadow: 0 2px 0 #bbb;
+    
+    /* Enhanced background with subtle gradient for depth */
+    background: linear-gradient(180deg, #fafafa 0%, #f0f0f0 50%, #e8e8e8 100%);
+    
+    /* Enhanced multi-layered shadows for realistic depth */
+    box-shadow: 
+        0 1px 0 rgba(255, 255, 255, 0.8) inset,  /* Top highlight */
+        0 -1px 0 rgba(0, 0, 0, 0.1) inset,        /* Bottom shadow */
+        0 2px 0 #bbb,                              /* Your original depth shadow */
+        0 3px 6px rgba(0, 0, 0, 0.15),           /* Ambient shadow */
+        0 1px 3px rgba(0, 0, 0, 0.2);            /* Contact shadow */
+    
     cursor: pointer;
     user-select: none;
     transition: all 0.1s ease;
+    
+    /* Subtle text shadow for all text inside */
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
     
     /* Flex settings for vertical alignment */
     display: flex;
@@ -442,11 +455,24 @@ button {
 }
 
 .keyboard-key:hover {
-    background-color: #fafafa;
+    background: linear-gradient(180deg, #ffffff 0%, #f8f8f8 50%, #f0f0f0 100%);
+    
+    /* Enhanced hover shadows */
+    box-shadow: 
+        0 1px 0 rgba(255, 255, 255, 0.9) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.08) inset,
+        0 2px 0 #bbb,
+        0 4px 8px rgba(0, 0, 0, 0.18),
+        0 2px 4px rgba(0, 0, 0, 0.25);
 }
 
 .keyboard-key:active {
-    box-shadow: 0 1px 0 #bbb;
+    /* Enhanced active state with inset shadows */
+    background: linear-gradient(180deg, #e8e8e8 0%, #f0f0f0 50%, #f8f8f8 100%);
+    box-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.2) inset,       /* Pressed-in shadow */
+        0 1px 0 #bbb,                              /* Reduced depth shadow */
+        0 2px 4px rgba(0, 0, 0, 0.1);            /* Minimal ambient shadow */
     transform: translateY(1px);
 }
 
@@ -472,6 +498,9 @@ button {
     width: 100%;
     margin: 0 auto; /* Center the element */
     padding-bottom: 2px; /* Ensures a small gap below the description */
+    
+    /* Enhanced text shadow for better readability */
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 /* --- NEW: Container for the two labels to sit side-by-side --- */
@@ -488,76 +517,99 @@ button {
     font-weight: bold;
     color: #333;
     margin-right: 6px; /* Space between primary and secondary */
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
-/* --- MODIFIED: Removed top margin --- */
-.secondary-label {
-    font-size: 14px;
-    color: rgb(0, 0, 179);
-}
+
 
 /* --- Key State Styling (Unchanged logic, just for context) --- */
 .keyboard-key.assigned {
-    background-color: #d4edda;
+    background: linear-gradient(180deg, #e8f5e8 0%, #d8edd8 50%, #c8e5c8 100%);
     border-color: #c3e6cb;
-    box-shadow: 0 2px 0 #a5c6ad;
+    box-shadow: 
+        0 1px 0 rgba(255, 255, 255, 0.9) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.05) inset,
+        0 2px 0 #a5c6ad,
+        0 3px 6px rgba(165, 198, 173, 0.3),
+        0 1px 3px rgba(0, 0, 0, 0.15);
 }
 .keyboard-key.assigned .primary-label {
     color: #155724;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .keyboard-key.assigned .key-description { /* Description color for assigned keys */
-    color: #155724; 
+    color: #155724;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 
 .keyboard-key.editing {
-    background-color: #cce5ff;
+    background: linear-gradient(180deg, #e6f3ff 0%, #d6e9ff 50%, #c6dfff 100%);
     border-color: #b8daff;
-    box-shadow: 0 2px 0 #9fcdff;
+    box-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.15) inset,
+        0 1px 0 #9fcdff,
+        0 2px 4px rgba(159, 205, 255, 0.4);
     transform: translateY(1px);
 }
 
 .keyboard-key.reserved {
-    background-color: #f8d7da;
+    background: linear-gradient(180deg, #fde8ea 0%, #f8d7da 50%, #f3c6ca 100%);
     border-color: #f5c6cb;
-    box-shadow: 0 2px 0 #d9a4ab;
+    box-shadow: 
+        0 1px 0 rgba(255, 255, 255, 0.8) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.08) inset,
+        0 2px 0 #d9a4ab,
+        0 3px 6px rgba(217, 164, 171, 0.3),
+        0 1px 3px rgba(0, 0, 0, 0.15);
 }
 .keyboard-key.reserved .primary-label,
 .keyboard-key.reserved .secondary-label {
     color: #721c24;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 .keyboard-key.reserved .key-description { /* Description color for reserved keys */
-    color: #721c24; 
+    color: #721c24;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }
+
+
+
 .keyboard-key[data-key-name="Escape"] {
     min-width: 90px;
 }
 .keyboard-key[data-key-name="`"] {
-    min-width: 90px;
+  
 }
 .keyboard-key[data-key-name="F12"] {
     min-width: 100px;
 }
 .keyboard-key[data-key-name="="] {
-    min-width: 100px;
+    
 }
+
+.keyboard-key[data-key-name="Backspace"] {
+   min-width: 100px;
+}
+
+
 
 .keyboard-key[data-key-name="Tab"] {
     min-width: 100px;
 }
 
 .keyboard-key[data-key-name="CapsLock"] {
-    min-width: 118px;
+    min-width: 135px;
 }
 .keyboard-key[data-key-name="Enter"] {
-    width: 70px;
+    min-width: 150px;
 }
 
 #qwerty-keyboard .keyboard-key[data-key-name="LShift"] {
-    min-width: 150.5px;
+    min-width: 170.5px;
 }
-.keyboard-key[data-key-name="RShift"] {
-    min-width: 132px;
+#qwerty-keyboard .keyboard-key[data-key-name="RShift"] {
+    min-width: 210px;
 }
 
 #qwerty-keyboard .keyboard-key[data-key-name="LControl"],
@@ -565,10 +617,10 @@ button {
 .keyboard-key[data-key-name="RControl"],
 .keyboard-key[data-key-name="RAlt"] {
     min-width: 110px;
-}
+}   
 
 .keyboard-key[data-key-name="Space"] {
-    width: 770.5px;
+    width: 490px;
 }
 
 /* ADD THIS NEW BLOCK to style.css */
@@ -785,30 +837,28 @@ button {
 .keyboard-key[data-key-name="LShift"],
 .keyboard-key[data-key-name="LControl"],
 .keyboard-key[data-key-name="LAlt"] {
-    background-color: #fffbe6; /* Light yellow */
+    background: linear-gradient(180deg, #fffdf0 0%, #fff8e1 50%, #fff3d1 100%);
     border-color: #ffeeba;
+    box-shadow: 
+        0 1px 0 rgba(255, 255, 255, 0.9) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.08) inset,
+        0 2px 0 #e6cc8a,
+        0 3px 6px rgba(230, 204, 138, 0.3),
+        0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 /* Style for when a modifier key is ACTIVE (layer is selected) */
 .keyboard-key.modifier-active {
-    background-color: #ffc107; /* Bright yellow */
+    background: linear-gradient(180deg, #fff8dc 0%, #ffeb3b 50%, #ffc107 100%);
     border-color: #e0a800;
     color: black;
-    box-shadow: 0 1px 0 #c69500;
+    box-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.2) inset,
+        0 1px 0 #c69500,
+        0 2px 4px rgba(0, 0, 0, 0.2);
     transform: translateY(1px);
 }
 .keyboard-key.modifier-active .primary-label{
     color: black;
-}
-
-/* Style for regular keys that HAVE a macro on a hidden modifier layer */
-.keyboard-key.has-modifier-macro .primary-label::after {
-    content: 'M'; /* A small dot is cleaner than a plus sign */
-    font-size: 14px;
-    font-weight: bold;
-    color: #a27a04;
-    position: absolute;
-    bottom : 2px;
-    right: 5px;
-    text-shadow: 0 0 2px rgba(0,0,0,0.5);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }

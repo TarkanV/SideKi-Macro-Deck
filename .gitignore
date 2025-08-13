@@ -4,6 +4,8 @@ config/user-settings.ahk
 
 syntax-highlighting-guide.md
 deps/config.rar
+packageSK.lnk
+build.bat
 
 
 # Logs
@@ -145,3 +147,6 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+
+build.bat

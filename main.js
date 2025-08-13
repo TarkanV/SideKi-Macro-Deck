@@ -41,7 +41,8 @@ app.whenReady().then(() => {
 
     
     // Register global shortcuts from your GlobalShortcutManager logic
-     globalShortcut.register('Control+Left', () => {
+    
+     globalShortcut.register('PrintScreen', () => {
         // When the shortcut is pressed, find the main window...
         const win = BrowserWindow.getAllWindows()[0];
         if (win) {
