@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs").promises;
 const { exec, spawn } = require("child_process");
 const { globalShortcut } = require("electron");
+const { escape } = require("querystring");
 
 //import GlobalShortcutManager from './GlobalShortcutManager.js';
 
@@ -48,6 +49,42 @@ const NUMPAD_LAYOUT = [
     [ { p: "Alt", s: "LAlt" }, { p: "0", s: "Numpad0" }, { p: ".", s: "NumpadDot" }]
 ];
 
+const VK_MAP = {
+        // --- Main Keyboard ---
+        // Function Row
+        'ESCAPE': 27, 'F1': 112, 'F2': 113, 'F3': 114, 'F4': 115, 'F5': 116, 'F6': 117, 'F7': 118, 'F8': 119, 'F9': 120, 'F10': 121, 'F11': 122, 'F12': 123,
+
+        // Number Row
+        '`': 192, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53, '6': 54, '7': 55, '8': 56, '9': 57, '0': 48, '-': 189, '=': 187, 'BACKSPACE': 8,
+
+        // Top Letter Row (QWERTY)
+        'TAB': 9, 'Q': 81, 'W': 87, 'E': 69, 'R': 82, 'T': 84, 'Y': 89, 'U': 85, 'I': 73, 'O': 79, 'P': 80, '[': 219, ']': 221, '\\': 220,
+
+        // Home Row
+        'CAPSLOCK': 20, 'A': 65, 'S': 83, 'D': 68, 'F': 70, 'G': 71, 'H': 72, 'J': 74, 'K': 75, 'L': 76, ';': 186, "'": 222, 'ENTER': 13,
+
+        // Bottom Letter Row
+        'LSHIFT': 160, 'Z': 90, 'X': 88, 'C': 67, 'V': 86, 'B': 66, 'N': 78, 'M': 77, ',': 188, '.': 190, '/': 191, 'RSHIFT': 161,
+
+        // Bottom Row
+        'LCONTROL': 162, 'LWIN': 91, 'LALT': 164, 'SPACE': 32, 'RALT': 165, 'RWIN': 92, 'APPSKEY': 93, 'RCONTROL': 163,
+
+        // --- Navigation and Editing Cluster ---
+        'PRINTSCREEN': 44, 'SCROLLLOCK': 145, 'PAUSE': 19,
+        'INSERT': 45, 'HOME': 36, 'PGUP': 33,
+        'DELETE': 46, 'END': 35, 'PGDN': 34,
+
+        // Arrow Keys
+        'UP': 38, 'DOWN': 40, 'LEFT': 37, 'RIGHT': 39,
+
+        // --- Numpad ---
+        'NUMLOCK': 144, 'NUMPADDIV': 111, 'NUMPADMULT': 106, 'NUMPADSUB': 109,
+        'NUMPAD7': 103, 'NUMPAD8': 104, 'NUMPAD9': 105, 'NUMPADADD': 107,
+        'NUMPAD4': 100, 'NUMPAD5': 101, 'NUMPAD6': 102,
+        'NUMPAD1': 97, 'NUMPAD2': 98, 'NUMPAD3': 99, 'NUMPADENTER': 13,
+        'NUMPAD0': 96, 'NUMPADDOT': 110
+    };
+
 
 const defaultData = {
   Global: {
@@ -55,12 +92,21 @@ const defaultData = {
     activeProfile: "Default",
     cycleHotkey: "",
     profiles: {
+        
       Default: {
-        hotkeys: { F13: 'MsgBox("This is the default Global profile.")' },
+        hotkeys: { 
+            '1': {
+                down : `; Command Title
+MsgBox("This is the default Global profile.")`,
+                up: '' 
+            }
+        },
       },
     },
   },
 };
+
+
 let programProfiles = {};
 let selectedProgramName = "Global";
 let selectedKeyName = null;
@@ -667,82 +713,296 @@ function runAllValidations() {
 
 function keyToVk(keyName) {
   const upperKey = keyName.toUpperCase();
-  const vkMap = {
-        // --- Main Keyboard ---
-        // Function Row
-        'ESCAPE': 27, 'F1': 112, 'F2': 113, 'F3': 114, 'F4': 115, 'F5': 116, 'F6': 117, 'F7': 118, 'F8': 119, 'F9': 120, 'F10': 121, 'F11': 122, 'F12': 123,
-
-        // Number Row
-        '`': 192, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53, '6': 54, '7': 55, '8': 56, '9': 57, '0': 48, '-': 189, '=': 187, 'BACKSPACE': 8,
-
-        // Top Letter Row (QWERTY)
-        'TAB': 9, 'Q': 81, 'W': 87, 'E': 69, 'R': 82, 'T': 84, 'Y': 89, 'U': 85, 'I': 73, 'O': 79, 'P': 80, '[': 219, ']': 221, '\\': 220,
-
-        // Home Row
-        'CAPSLOCK': 20, 'A': 65, 'S': 83, 'D': 68, 'F': 70, 'G': 71, 'H': 72, 'J': 74, 'K': 75, 'L': 76, ';': 186, "'": 222, 'ENTER': 13,
-
-        // Bottom Letter Row
-        'LSHIFT': 160, 'Z': 90, 'X': 88, 'C': 67, 'V': 86, 'B': 66, 'N': 78, 'M': 77, ',': 188, '.': 190, '/': 191, 'RSHIFT': 161,
-
-        // Bottom Row
-        'LCONTROL': 162, 'LWIN': 91, 'LALT': 164, 'SPACE': 32, 'RALT': 165, 'RWIN': 92, 'APPSKEY': 93, 'RCONTROL': 163,
-
-        // --- Navigation and Editing Cluster ---
-        'PRINTSCREEN': 44, 'SCROLLLOCK': 145, 'PAUSE': 19,
-        'INSERT': 45, 'HOME': 36, 'PGUP': 33,
-        'DELETE': 46, 'END': 35, 'PGDN': 34,
-
-        // Arrow Keys
-        'UP': 38, 'DOWN': 40, 'LEFT': 37, 'RIGHT': 39,
-
-        // --- Numpad ---
-        'NUMLOCK': 144, 'NUMPADDIV': 111, 'NUMPADMULT': 106, 'NUMPADSUB': 109,
-        'NUMPAD7': 103, 'NUMPAD8': 104, 'NUMPAD9': 105, 'NUMPADADD': 107,
-        'NUMPAD4': 100, 'NUMPAD5': 101, 'NUMPAD6': 102,
-        'NUMPAD1': 97, 'NUMPAD2': 98, 'NUMPAD3': 99, 'NUMPADENTER': 13,
-        'NUMPAD0': 96, 'NUMPADDOT': 110
-    };
+  
 
 
-  return vkMap[upperKey] || 0;
+  return VK_MAP[upperKey] || 0;
 }
 
 // In script.js
 
-// REPLACE this entire function in script.js
-// REPLACE this entire function in script.js
-// REPLACE this entire function in script.js
+
+
+// REPLACE your entire generateAhkScript function with this corrected version.
 function generateAhkScript() {
-    const ahkSafeMultiKbPath = MULTIKB_EXE_PATH.replace(/\\/g, "\\\\");
+    // --- HELPER FUNCTION: Sanitizes a string to be a valid AHK function name part ---
+    const sanitizeForFuncName = (name) => {
+        // Map special characters to descriptive text to avoid collisions.
+        const specialCharsMap = {
+            '`': 'Backtick',
+            '-': 'Hyphen',
+            '=': 'Equals',
+            '[': 'LBracket',
+            ']': 'RBracket',
+            '\\': 'Backslash',
+            ';': 'Semicolon',
+            "'": 'Quote',
+            ',': 'Comma',
+            '.': 'Period',
+            '/': 'Slash',
+            ' ': 'Space' 
+        };
+
+        // If the name is a key in our special map, use the descriptive name.
+        if (specialCharsMap[name]) {
+            return specialCharsMap[name];
+        }
+        
+        // For other characters (or already-safe names), use regex replacement.
+        // This handles cases like 'Numpad1', 'F1', etc., safely.
+        const sanitized = name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/^(\d)/, '_$1');
+        return sanitized || 'unnamed'; // Fallback for empty strings
+    };
+
+    // --- HELPER FUNCTION: Converts a JS object to a valid AHK v2 Map() string ---
+    const convertJsToAhkMap = (obj) => {
+        if (typeof obj !== 'object' || obj === null) {
+            if (typeof obj === 'string') {
+                const escapedString = obj.replace(/`/g, '``').replace(/"/g, '""');
+                return `"${escapedString}"`;
+            }
+            return (obj ?? '""');
+        }
+
+        const entries = Object.entries(obj).map(([key, value]) => {
+            const escapedKey = `"${key.replace(/`/g, '``').replace(/"/g, '""')}"`;
+            const ahkValue = convertJsToAhkMap(value);
+            return `${escapedKey}, ${ahkValue}`;
+        });
+        
+
+        return `Map(${entries.join(', ')})`;
+    };
+
+    // --- DATA & FUNCTION GENERATION ---
+    const dataForMap = JSON.parse(JSON.stringify(programProfiles)); // Deep copy
+    let functionsString = `
+; ===================================================================
+; --- DYNAMICALLY GENERATED HOTKEY FUNCTIONS ---
+; ===================================================================
+`;
+
+    // Iterate through all profiles to generate functions and update the map data
+    for (const progKey in dataForMap) {
+        const program = dataForMap[progKey];
+        if (program.cycleHotkey) {
+            program.cycleHotkey = program.cycleHotkey.toUpperCase();
+        }
+        if (program.profiles) {
+            for (const profKey in program.profiles) {
+                const profile = program.profiles[profKey];
+                const sanProf = sanitizeForFuncName(profKey);
+                for (const layerKey in profile) { // e.g., hotkeys, alt_hotkeys
+                    const layer = profile[layerKey];
+                    if (typeof layer !== 'object' || layer === null) continue;
+
+                    // =================================================================
+                    // --- THE FIX: Rebuild layer with UPPERCASE hotkey keys ---
+                    // =================================================================
+                    const newLayerWithUppercaseKeys = {}; // Create a temporary object
+                    for (const hotkeyKey in layer) {
+                        const hotkey = layer[hotkeyKey];
+                        const sanProg = sanitizeForFuncName(progKey);
+                        const sanProf = sanitizeForFuncName(profKey);
+                        const sanHotkey = sanitizeForFuncName(hotkeyKey);
+
+                        if (hotkey.down && hotkey.down.trim() !== '') {
+                            const funcName = `Func_${sanProg}_${sanProf}_${layerKey}_${sanHotkey}_down`;
+                            functionsString += `${funcName}() {\n${hotkey.down}\n}\n\n`;
+                            hotkey.down = funcName;
+                        }
+                        if (hotkey.up && hotkey.up.trim() !== '') {
+                            const funcName = `Func_${sanProg}_${sanProf}_${layerKey}_${sanHotkey}_up`;
+                            functionsString += `${funcName}() {\n${hotkey.up}\n}\n\n`;
+                            hotkey.up = funcName;
+                        }
+                        // Add the processed hotkey to our temporary object using an UPPERCASE key
+                        newLayerWithUppercaseKeys[hotkeyKey.toUpperCase()] = hotkey;
+                    }
+                    // Replace the old layer in our data copy with the newly built one
+                    profile[layerKey] = newLayerWithUppercaseKeys;
+                    // ===============================================================
+                    // --- END OF THE FIX ---
+                    // ===============================================================
+                }
+            }
+        }
+    }
+
+    const allHotkeysAhkString = convertJsToAhkMap(dataForMap);
+    const ahkSafeMultiKbPath = MULTIKB_EXE_PATH ? MULTIKB_EXE_PATH.replace(/\\/g, "\\\\").replace(/`/g, '``').replace(/"/g, '""') : "";
+    const safeDepsDir = DEPS_DIR ? DEPS_DIR.replace(/\\/g, "\\\\").replace(/`/g, '``').replace(/"/g, '""') : ".";
+
+
+    // --- SCRIPT ASSEMBLY ---
     let script = `#Requires AutoHotkey v2.0
 Persistent
-#SingleInstance
+#SingleInstance Force
 SendMode "Input"
 SetWorkingDir A_InitialWorkingDir
 
-; This file is auto-generated. Do not edit directly.
-
-#Include ${DEPS_DIR}\\Lib\\UISearch.ahk
+#Include "${safeDepsDir}\\Lib\\UISearch.ahk"
 
 ; Check if MultiKB is running to prevent multiple instances
 if !ProcessExist("MultiKB_For_AutoHotkey.exe") {
     try {
-        Run "${ahkSafeMultiKbPath}"
+        Run '"${ahkSafeMultiKbPath}"'
     } catch {
         MsgBox "Could not start MultiKB_For_AutoHotkey.exe. Please ensure it is at the correct path."
     }
 }
 
-global Profiles := Map()
-`;
-    for (const progName in programProfiles) {
-        script += `Profiles["${progName}"] := "${programProfiles[progName].activeProfile}"\n`;
-    }
-    script += `
-OnMessage(1325, MsgFunc)
 
-MsgFunc(wParam, lParam, msg, hwnd) {
-  OnUniqueKeyboard(wParam, lParam & 0xFF, (lParam & 0x100) > 0, (lParam & 0x200) > 0, (lParam & 0x400) > 0, (lParam & 0x800) > 0, (lParam & 0x1000) > 0, (lParam & 0x2000) > 0, (lParam & 0x4000) > 0, (lParam & 0x8000) > 0)  	
+; ===================================================================
+; --- CONFIGURATION & STATE (Auto-Generated) ---
+; ===================================================================
+global MKB_DeviceNumber := 1
+global MKB_ProcessName := "MultiKB_For_AutoHotkey.exe"
+global MKB_Path := "${ahkSafeMultiKbPath}"
+
+; The entire configuration is loaded into this single Map.
+global AllData := ${allHotkeysAhkString}
+global ActiveProfiles := Map()
+`;
+
+    for (const progName in programProfiles) {
+        const escapedProgName = progName.replace(/`/g, '``').replace(/"/g, '""');
+        const escapedActiveProfile = programProfiles[progName].activeProfile.replace(/`/g, '``').replace(/"/g, '""');
+        script += `ActiveProfiles["${escapedProgName}"] := "${escapedActiveProfile}"\n`;
+    }
+
+    script += functionsString; // Add all the generated functions to the script
+
+    script += `
+; ===================================================================
+; --- CORE DYNAMIC FUNCTIONS ---
+; ===================================================================
+
+SendData(Text) {
+    socket := -1
+    try {
+        wsaData := Buffer(400)
+        if (DllCall("ws2_32\\WSAStartup", "UShort", 0x0202, "Ptr", wsaData.Ptr) != 0)
+            throw Error("WSAStartup failed")
+        
+        socket := DllCall("ws2_32\\socket", "Int", 2, "Int", 1, "Int", 6, "UPtr")
+        if (socket = -1 or socket = 0)
+            throw Error("Socket creation failed")
+        
+        sockaddr := Buffer(16, 0)
+        NumPut("UShort", 2, sockaddr, 0)
+        NumPut("UShort", DllCall("ws2_32\\htons", "UShort", 9001), sockaddr, 2)
+        NumPut("UInt", DllCall("ws2_32\\inet_addr", "AStr", "127.0.0.1"), sockaddr, 4)
+        
+        if (DllCall("ws2_32\\connect", "UPtr", socket, "Ptr", sockaddr.Ptr, "Int", 16) != 0)
+            throw Error("Connection failed")
+        
+        dataToSend := Text . "\`n"
+        requiredSize := StrPut(dataToSend, "UTF-8")
+        dataBuffer := Buffer(requiredSize)
+        StrPut(dataToSend, dataBuffer, "UTF-8")
+        
+        if (DllCall("ws2_32\\send", "UPtr", socket, "Ptr", dataBuffer.Ptr, "Int", requiredSize - 1, "Int", 0) = -1)
+            throw Error("Send failed")
+    } catch as e {
+        ; MsgBox("Network Error: " . e.Message) ; Uncomment for debugging
+    } finally {
+        if (socket != -1 and socket != 0)
+            DllCall("ws2_32\\closesocket", "UPtr", socket)
+        DllCall("ws2_32\\WSACleanup")
+    }
+}
+
+UpdateCatchList(vkCodeArray) {
+    local vkCodesString := ""
+    if (vkCodeArray.Length > 0) {
+        for index, vk in vkCodeArray {
+            vkCodesString .= vk . (index == vkCodeArray.Length ? "" : ",")
+        }
+    }
+    local jsonData := '{"DeviceNumber": ' . MKB_DeviceNumber . ', "CatchVKCodes": "' . vkCodesString . '"}'
+    SendData(jsonData)
+}
+
+MainContextLoop() {
+    static lastContextName := ""
+    static lastProfilesString := ""
+    
+    local currentContextName := "Global"
+`;
+
+    let contextIfChain = 'if';
+    for (const progName in programProfiles) {
+        const program = programProfiles[progName];
+        if (progName === "Global" || !program.exeName) continue;
+        
+        const titlePart = program.windowTitle ? program.windowTitle.replace(/`/g, '``').replace(/"/g, '""') + " " : "";
+        const exeName = program.exeName.replace(/`/g, '``').replace(/"/g, '""');
+        const escapedProgName = progName.replace(/`/g, '``').replace(/"/g, '""');
+        
+        script += `    ${contextIfChain} (WinActive("${titlePart}ahk_exe ${exeName}")) {\n`;
+        script += `        currentContextName := "${escapedProgName}"\n`;
+        script += `    }\n`;
+        contextIfChain = 'else if';
+    }
+
+    script += `
+    local currentProfilesString := ""
+    for key, value in ActiveProfiles {
+        currentProfilesString .= key . ":" . value . ","
+    }
+
+    if (currentContextName == lastContextName && currentProfilesString == lastProfilesString) {
+        return ; Nothing has changed, so do nothing.
+    }
+
+    local catchList := Map()
+    if (AllData.Has(currentContextName)) {
+        local activeProfileName := ActiveProfiles[currentContextName]
+        if (AllData[currentContextName].Has("profiles") && AllData[currentContextName]["profiles"].Has(activeProfileName)) {
+            local currentProfile := AllData[currentContextName]["profiles"][activeProfileName]
+            for layerKey, layerMap in currentProfile {
+                for keyName, _ in layerMap {
+                    catchList[keyToVk(keyName)] := true
+                }
+            }
+        }
+    }
+    
+    if (currentContextName != "Global") {
+        local globalProfileName := ActiveProfiles["Global"]
+        if (AllData["Global"].Has("profiles") && AllData["Global"]["profiles"].Has(globalProfileName)) {
+            local globalProfile := AllData["Global"]["profiles"][globalProfileName]
+            for layerKey, layerMap in globalProfile {
+                for keyName, _ in layerMap {
+                    catchList[keyToVk(keyName)] := true
+                }
+            }
+        }
+    }
+
+    ; Always add all cycle hotkeys to the catch list
+`;
+
+    for (const progName in programProfiles) {
+        const program = programProfiles[progName];
+        if (program.cycleHotkey) {
+            const escapedHotkey = program.cycleHotkey.replace(/`/g, '``').replace(/"/g, '""').toUpperCase();
+            
+            script += `    catchList[keyToVk("${escapedHotkey}")] := true\n`;
+        }
+    }
+
+    script += `
+    local vkCodeArray := []
+    for vk, _ in catchList {
+        vkCodeArray.Push(vk)
+    }
+
+    UpdateCatchList(vkCodeArray)
+    
+    lastContextName := currentContextName
+    lastProfilesString := currentProfilesString
 }
 
 ShowProfileToast(profileText) {
@@ -753,161 +1013,193 @@ ShowProfileToast(profileText) {
     ToastGui.Show("NoActivate")
     SetTimer(() => ToastGui.Destroy(), -2000)
 }
+`;
 
-OnUniqueKeyboard(KeyboardNumber, VKeyCode, IsDown, WasDown, IsExtended, LeftCtrl, RightCtrl, LeftAlt, RightAlt, Shift) {
-    global Profiles
-    
-    if (KeyboardNumber != 1) {
+    script += `
+; ===================================================================
+; --- KEYPRESS HANDLER ---
+; ===================================================================
+OnMessage(1325, MsgFunc)
+
+MsgFunc(wParam, lParam, msg, hwnd) {
+    OnUniqueKeyboard(wParam, lParam & 0xFF, (lParam & 0x100) > 0, (lParam & 0x1800) > 0, (lParam & 0x6000) > 0, (lParam & 0x8000) > 0)
+}
+
+OnUniqueKeyboard(KeyboardNumber, VKeyCode, IsDown, AnyCtrl, AnyAlt, Shift) {
+    if (KeyboardNumber != MKB_DeviceNumber) {
         return
     }
 
-    AnyCtrl := LeftCtrl || RightCtrl
-    AnyAlt := LeftAlt || RightAlt
+    local currentContextName := "Global"
 `;
-    
-    const generateLayerCode = (hotkeyMap) => {
-        let layerScript = '';
-        if (!hotkeyMap) return '';
-        for (const hotkeyName in hotkeyMap) {
-            const hotkeyData = hotkeyMap[hotkeyName];
-            const vk = keyToVk(hotkeyName);
-            if (!vk || (!hotkeyData.down && !hotkeyData.up)) continue;
-            layerScript += `            if (VKeyCode == ${vk}) {\n`;
-            if (hotkeyData.down && hotkeyData.down.trim()) {
-                const indented = hotkeyData.down.split('\n').map(l => '                ' + l).join('\n');
-                layerScript += `                if (IsDown) {\n${indented}\n                    return\n                }\n`;
-            }
-            if (hotkeyData.up && hotkeyData.up.trim()) {
-                const indented = hotkeyData.up.split('\n').map(l => '                ' + l).join('\n');
-                layerScript += `                if (!IsDown) {\n${indented}\n                    return\n                }\n`;
-            }
-            layerScript += `            }\n`;
-        }
-        return layerScript;
-    };
 
-    script += `
-    ; --- Base Layer (No Modifiers) ---
-    if (!AnyCtrl && !AnyAlt && !Shift) {
-        local foundProgramHotkey := false
-`;
+    contextIfChain = 'if';
     for (const progName in programProfiles) {
         const program = programProfiles[progName];
         if (progName === "Global" || !program.exeName) continue;
-        const titlePart = program.windowTitle ? program.windowTitle + " " : "";
-        script += `\n        ; --- Check for ${progName.toUpperCase()} --- \n`;
-        script += `        if (WinActive("${titlePart}ahk_exe ${program.exeName}")) {\n`;
-        const allKeysInProgram = new Set();
-        for (const profName in program.profiles) {
-            if (program.profiles[profName].hotkeys) {
-                Object.keys(program.profiles[profName].hotkeys).forEach((k) => allKeysInProgram.add(k));
-            }
-        }
-        if (program.cycleHotkey) {
-            allKeysInProgram.add(program.cycleHotkey);
-        }
-        if (allKeysInProgram.size > 0) {
-            const vkConditions = Array.from(allKeysInProgram).map((key) => `VKeyCode == ${keyToVk(key)}`).join(" || ");
-            script += `            if (${vkConditions}) {\n                foundProgramHotkey := true\n            }\n`;
-        }
-        if (program.cycleHotkey) {
-            const vk = keyToVk(program.cycleHotkey);
-            const profiles = Object.keys(program.profiles);
-            if (vk && profiles.length > 1) {
-                script += `            if (VKeyCode == ${vk} && !IsDown) {\n`;
-                script += `                local availableProfiles := ${JSON.stringify(profiles)}\n`;
-                script += `                currentIndex := 0\n`;
-                script += `                for i, prof in availableProfiles {\n`;
-                script += `                    if (prof == Profiles["${progName}"]) {\n                        currentIndex := i\n                    }\n`;
-                script += `                }\n`;
-                script += `                nextIndex := Mod(currentIndex, availableProfiles.Length) + 1\n`;
-                script += `                Profiles["${progName}"] := availableProfiles[nextIndex]\n`;
-                script += `                ShowProfileToast("${program.displayName || progName} > " . Profiles["${progName}"])\n`;
-                script += `                return\n`;
-                script += `            }\n`;
-            }
-        }
-        for (const profName in program.profiles) {
-            const profile = program.profiles[profName];
-            script += `            if (Profiles["${progName}"] == "${profName}") {\n`;
-            script += generateLayerCode(profile.hotkeys);
-            script += `            }\n`;
-        }
-        script += `        }\n`;
-    }
-    script += `\n        if (!foundProgramHotkey) {\n`;
-    const globalProgram = programProfiles["Global"];
-    if (globalProgram) {
-        script += `            ; --- GLOBAL (FALLBACK) Hotkeys --- \n`;
-        if (globalProgram.cycleHotkey) {
-            const vk = keyToVk(globalProgram.cycleHotkey);
-            if (vk) {
-                script += `            if (VKeyCode == ${vk} && !IsDown) {\n`;
-                const profiles = Object.keys(globalProgram.profiles);
-                if (profiles.length > 1) {
-                    script += `                local availableProfiles := ${JSON.stringify(profiles)}\n`;
-                    script += `                currentIndex := 0\n`;
-                    script += `                for i, prof in availableProfiles {\n`;
-                    script += `                    if (prof == Profiles["Global"]) {\n                        currentIndex := i\n                    }\n`;
-                    script += `                }\n`;
-                    script += `                nextIndex := Mod(currentIndex, availableProfiles.Length) + 1\n`;
-                    script += `                Profiles["Global"] := availableProfiles[nextIndex]\n`;
-                    script += `                ShowProfileToast("Global: " . Profiles["Global"])\n`;
-                    script += `                return\n`;
-                }
-                script += `            }\n`;
-            }
-        }
-        for (const profName in globalProgram.profiles) {
-            const profile = globalProgram.profiles[profName];
-            script += `            if (Profiles["Global"] == "${profName}") {\n`;
-            script += generateLayerCode(profile.hotkeys);
-            script += `            }\n`;
-        }
-    }
-    script += `        }\n    }\n`;
-
-    const modifiers = [
-        { name: 'Shift', mapName: 'shift_hotkeys', condition: 'Shift && !AnyCtrl && !AnyAlt' },
-        { name: 'Ctrl',  mapName: 'ctrl_hotkeys',  condition: 'AnyCtrl && !Shift && !AnyAlt' },
-        { name: 'Alt',   mapName: 'alt_hotkeys',   condition: 'AnyAlt && !Shift && !AnyCtrl' }
-    ];
-    for (const modifier of modifiers) {
-        script += `\n    ; --- ${modifier.name} Layer ---\n    if (${modifier.condition}) {\n`;
-        for (const progName in programProfiles) {
-             const program = programProfiles[progName];
-             if (progName === 'Global' || !program.exeName) continue;
-             const titlePart = program.windowTitle ? program.windowTitle + " " : "";
-             script += `        if (WinActive("${titlePart}ahk_exe ${program.exeName}")) {\n`;
-             for (const profName in program.profiles) {
-                const profile = program.profiles[profName];
-                script += `            if (Profiles["${progName}"] == "${profName}") {\n`;
-                script += generateLayerCode(profile[modifier.mapName]);
-                script += `            }\n`;
-             }
-             script += `            return ; IMPORTANT: Prevent fallback to global if an app-specific key is found on this layer\n`;
-             script += `        }\n`;
-        }
-        const global = programProfiles['Global'];
-        if(global) {
-            script += `        ; --- GLOBAL (FALLBACK) Hotkeys --- \n`;
-            for (const profName in global.profiles) {
-                const profile = global.profiles[profName];
-                script += `        if (Profiles["Global"] == "${profName}") {\n`;
-                script += generateLayerCode(profile[modifier.mapName]);
-                script += `        }\n`;
-            }
-        }
+        
+        const titlePart = program.windowTitle ? program.windowTitle.replace(/`/g, '``').replace(/"/g, '""') + " " : "";
+        const exeName = program.exeName.replace(/`/g, '``').replace(/"/g, '""');
+        const escapedProgName = progName.replace(/`/g, '``').replace(/"/g, '""');
+        
+        script += `    ${contextIfChain} (WinActive("${titlePart}ahk_exe ${exeName}")) {\n`;
+        script += `        currentContextName := "${escapedProgName}"\n`;
         script += `    }\n`;
+        contextIfChain = 'else if';
     }
 
-    script += `}\n`;
     script += `
-KillProcessOnExit(ExitReason, ExitCode) {
-    try ProcessClose("MultiKB_For_AutoHotkey.exe")
+    local keyString := vkCodeToKey(VKeyCode)
+    if (keyString == "") {
+        return ; If the key isn't in our map, we can't do anything with it.
+    }
+
+    ; --- 1. Check for Profile Cycle Hotkey ---
+    local currentProgramData := AllData[currentContextName]
+    if (currentProgramData.Has("cycleHotkey") && currentProgramData["cycleHotkey"] == keyString && !IsDown) {
+        local profileNames := []
+        if (currentProgramData.Has("profiles")) {
+            for name, _ in currentProgramData["profiles"] {
+                profileNames.Push(name)
+            }
+        }
+        if (profileNames.Length > 1) {
+            local activeProfileName := ActiveProfiles[currentContextName]
+            local currentIndex := -1
+            for i, name in profileNames {
+                if (name == activeProfileName) {
+                    currentIndex := i
+                    break
+                }
+            }
+            local nextIndex := Mod(currentIndex, profileNames.Length) + 1
+            ActiveProfiles[currentContextName] := profileNames[nextIndex]
+            local displayName := currentProgramData.Has("displayName") ? currentProgramData["displayName"] : currentContextName
+            ShowProfileToast(displayName . " -> " . profileNames[nextIndex])
+            MainContextLoop()
+            return
+        }
+    }
+
+    ; --- 2. Check for App-Specific Macro ---
+    if (currentContextName != "Global") {
+        if (HandleHotkey(currentContextName, keyString, IsDown, AnyCtrl, AnyAlt, Shift)) {
+            return ; App-specific hotkey was found and handled.
+        }
+
+        ; --- Prevent Fallback Logic ---
+        if (currentProgramData.Has("profiles")) {
+            for profName, profData in currentProgramData["profiles"] {
+                for layerName, layerMap in profData {
+                    if (layerMap.Has(keyString)) {
+                        return
+                    }
+                }
+            }
+        }
+    }
+    
+    ; --- 3. Fallback to Global Macro ---
+    HandleHotkey("Global", keyString, IsDown, AnyCtrl, AnyAlt, Shift)
 }
-OnExit(KillProcessOnExit)
+
+HandleHotkey(programName, keyString, IsDown, AnyCtrl, AnyAlt, Shift) {
+    local programData := AllData[programName]
+    local activeProfileName := ActiveProfiles[programName]
+    if (!programData.Has("profiles") || !programData["profiles"].Has(activeProfileName)) {
+        return false
+    }
+    local profile := programData["profiles"][activeProfileName]
+
+    local layerName := ""
+    if (Shift && !AnyCtrl && !AnyAlt) {
+        layerName := "shift_hotkeys"
+    } else if (AnyCtrl && !Shift && !AnyAlt) {
+        layerName := "ctrl_hotkeys"
+    } else if (AnyAlt && !Shift && !AnyCtrl) {
+        layerName := "alt_hotkeys"
+    } else if (!AnyCtrl && !AnyAlt && !Shift) {
+        layerName := "hotkeys"
+    } else {
+        return false ; Combo-modifiers not supported by this logic
+    }
+
+    if (profile.Has(layerName) && profile[layerName].Has(keyString)) {
+        local scriptData := profile[layerName][keyString]
+        local funcName := ""
+
+        if (IsDown && scriptData.Has("down")) {
+            funcName := scriptData["down"]
+        } else if (!IsDown && scriptData.Has("up")) {
+            funcName := scriptData["up"]
+        }
+
+        if (funcName && Type(%funcName%) = "Func") { ; <-- FIXED: Use && and check funcName is not empty
+            try {
+                ; Execute the dynamically-retrieved function by its name.
+                %funcName%()
+            } catch as e {
+                MsgBox("Hotkey execution error: " . e.Message, "Error in " . funcName, 16)
+            }
+        }
+        return true ; Hotkey was found and handled.
+    }
+    return false ; No hotkey found in this layer.
+}
 `;
+
+    script += `
+; ===================================================================
+; --- HELPER FUNCTIONS & STARTUP ---
+; ===================================================================
+keyToVk(keyName) {
+    static vkMap := Map()
+    if (vkMap.Count = 0) {
+        vkMap := ${convertJsToAhkMap(VK_MAP)}
+    }
+    return vkMap.Has(StrUpper(keyName)) ? vkMap[StrUpper(keyName)] : 0
+}
+
+vkCodeToKey(vkCode) {
+    static keyMap := Map()
+    if (keyMap.Count = 0) {
+        vkMapData := ${convertJsToAhkMap(VK_MAP)}
+        for key, val in vkMapData {
+            keyMap[val] := key
+        }
+    }
+    return keyMap.Has(vkCode) ? keyMap[vkCode] : ""
+}
+
+; --- SCRIPT STARTUP & CLEANUP ---
+ExitFunc(*) {
+    try {
+        DllCall("ws2_32\\WSACleanup")
+    }
+    try {
+        if ProcessExist(MKB_ProcessName)
+            ProcessClose(MKB_ProcessName)
+    }
+}
+
+OnExit(ExitFunc)
+
+if !ProcessExist(MKB_ProcessName) {
+    try {
+        Run(MKB_Path)
+    } catch {
+        ; Silently fail if not found, or add a MsgBox here for debugging.
+    }
+}
+
+try {
+    DllCall("ws2_32\\WSAStartup", "UShort", 0x0202, "Ptr", Buffer(400,0))
+}
+
+MainContextLoop()
+SetTimer(MainContextLoop, 500)
+`;
+    
     return script;
 }
 
@@ -1315,7 +1607,10 @@ function setupEventListeners() {
         try {
             await fs.mkdir(USER_DIR, { recursive: true });
             await fs.writeFile(SETTINGS_JSON_PATH, JSON.stringify(programProfiles, null, 2), "utf8");
-            await fs.writeFile(AHK_SCRIPT_PATH, generateAhkScript(), "utf8");
+            const generation = generateAhkScript();
+            console.log("Generated AHK script:", generation);
+            await fs.writeFile(AHK_SCRIPT_PATH, generation, "utf8");
+            console.log(programProfiles);
             statusMsg.textContent = "Settings saved and AHK script generated successfully!";
             statusMsg.style.color = "green";
         } catch (err) {

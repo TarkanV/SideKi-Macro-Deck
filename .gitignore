@@ -6,7 +6,9 @@ syntax-highlighting-guide.md
 deps/config.rar
 packageSK.lnk
 build.bat
-
+newAHK.ahk
+newAHK2.ahk 
+testMSG.ahk
 
 # Logs
 logs
