@@ -1,1 +1,3 @@
 npm run package
+
+pause
