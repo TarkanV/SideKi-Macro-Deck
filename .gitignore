@@ -5,6 +5,7 @@ config/user-settings.ahk
 syntax-highlighting-guide.md
 deps/config.rar
 packageSK.lnk
+deps/MKB/MKB.rar
 build.bat
 
 
