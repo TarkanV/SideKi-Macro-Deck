@@ -7,7 +7,10 @@ deps/config.rar
 packageSK.lnk
 deps/MKB/MKB.rar
 build.bat
-
+newAHK.ahk
+newAHK2.ahk 
+testMSG.ahk
+deps/MKB/MKB.rar
 
 # Logs
 logs
