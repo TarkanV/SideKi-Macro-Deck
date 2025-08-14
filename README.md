@@ -14,7 +14,7 @@
   ```bash
   npm install
   ```
- - **Run the project**:
+- **Run the project**:
   ```bash
   npm run start
   ``` 
