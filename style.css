@@ -11,6 +11,10 @@ body {
     background-color: #fdfdfd;
 }
 
+:root{
+    --moveValue : 10px;
+}
+
 h2 {
     margin-top: 0;
     color: #555;
@@ -70,7 +74,7 @@ button {
     
     width: 50px;        /* Start in the COLLAPSED state */
     border-right: 1px solid #ccc;
-    padding: 10px;
+    padding: 10px 3px;
     display: flex;
     flex-direction: column;
     background-color: #f7f7f7;
@@ -81,14 +85,24 @@ button {
 
 /* Add this new rule anywhere in your CSS */
 #program-list-container:hover {
-    width: 220px; /* Expanded width */
+    width: 290px; /* Expanded width */
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15); /* Add a shadow for better overlay effect */
+  
+    
 }
+
+
+
+
 
 #program-list {
     flex-grow: 1;
     overflow-y: auto;
     margin-bottom: 10px;
+    display:  flex;
+    
+    flex-direction: column;
+    align-items: space-between;
 }
 
 /* Add these new rules anywhere in your CSS */
@@ -119,6 +133,8 @@ button {
     pointer-events: none; /* Disable mouse interactions when invisible */
 }
 
+
+
 /* When the container is hovered, fade the text content back in */
 #program-list-container:hover .header-title,
 #program-list-container:hover .program-name-wrapper,
@@ -127,6 +143,49 @@ button {
     transition: opacity 0.2s ease-in 0.1s; /* Fade in with a slight delay */
     pointer-events: auto; /* Re-enable mouse interactions */
 }
+
+
+
+.program-item-controls{
+    display : flex;
+    align-items: center;
+}
+
+.program-item-controls span{
+    font-size: 1rem !important;
+     color: #999 !important;
+    
+}
+.program-item-controls button{
+    padding : 5px 0px;
+    
+
+}
+
+#program-list-container:hover .delete-btn:hover{
+    background-color : rgba(231, 148, 148, 0.296);
+    border-radius: 6px;
+}
+#program-list-container:hover .reorder-btn:hover{
+    background-color : rgba(100, 148, 148, 0.296);
+    border-radius: 6px;
+}
+
+[data-program-name="Global"] .reorder-btn{
+    display: none;
+}
+
+
+
+.reorder-btn{
+    border : none;
+    background-color: inherit;   
+}
+.reorder-btn > span{
+
+}
+
+
 
 
 .program-item {
@@ -140,6 +199,15 @@ button {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    transition: 0.2s;
+}
+.program-item.moving-up{
+    transform: translateY(calc(-1 * var(--moveValue)));
+     transition: 0.2s;
+}
+.program-item.moving-down{
+     transform: translateY(var(--moveValue));
+      transition: 0.2s;
 }
 
 
@@ -153,8 +221,8 @@ button {
 }
 
 .program-item.selected {
-    background-color: #007bff;
-    color: white;
+    background-color: #a8d2ff;
+    color: black;
 }
 
 .program-item:not(.selected):hover {
@@ -243,12 +311,6 @@ button {
     pointer-events: auto;
 }
 
-/* When collapsed, make the buttons icon-only */
-#program-list-container:not(:hover) #add-program-btn,
-#program-list-container:not(:hover) #add-process-btn {
-  
-}
-
 
 
 /* ======================================= */
@@ -282,13 +344,8 @@ button {
     grid-template-columns: auto 1fr auto;
     align-items: center;
 }
-#mapping-profile-controls > label{
-    /*grid-column: span 3;*/
-}
 
-#mapping-profile-select{
 
-}
 
 #program-specific-settings {
   
@@ -315,11 +372,7 @@ button {
     width : 3rem;
 }
 
-.path-input {
 
-  
-  
-}
 .path-input > strong {
     margin-right: 5px;
 }
@@ -578,9 +631,7 @@ button {
 .keyboard-key[data-key-name="Escape"] {
     min-width: 90px;
 }
-.keyboard-key[data-key-name="`"] {
-  
-}
+
 .keyboard-key[data-key-name="F12"] {
     min-width: 100px;
 }
@@ -672,9 +723,10 @@ button {
     display: flex;
     flex-direction: column;
     flex-basis: 50%; /* Each editor takes up half the space */
+    min-width: 0; 
 }
 
-/* Make both text areas fill the available space */
+/*
 #script-editor-down, #script-editor-up {
     outline-color: #007bff; 
     flex-grow: 1;
@@ -687,8 +739,26 @@ button {
     padding: 10px;
     resize: none;
 }
+    */
+
+.CodeMirror{
+    font-size : 16px;
+    flex-grow: 1;
+    width: 100%;
+    border: 1px solid #ccc; /* Add a border for clarity */
+}
 
 
+
+/* Style the text inside the disabled editor to look like a placeholder */
+.CodeMirror-placeholder {
+  color: #999 !important; /* A light grey color for the placeholder text */
+}
+
+.CodeMirror-placeholder{
+     cursor: not-allowed;
+
+}
 
 
 /* ======================================= */
@@ -744,7 +814,12 @@ button {
     background-color: #f1f1f1;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     flex-shrink: 0; /* Prevent footer from shrinking */
+}
+#footer-left, #footer-right{
+    display : flex;
+    align-items: center;
 }
 
 #status-message {
@@ -759,6 +834,12 @@ button {
     display: flex;
     align-items: center;
     line-height: 1.2;
+   
+  
+   max-width: 170;
+   overflow: hidden;  
+  
+
 }
 
 .program-display-name {
@@ -771,9 +852,6 @@ button {
     font-style: italic;
 }
 
-.program-item.selected .program-internal-name {
-    color: #f0f0f0; /* Lighter gray for better contrast on the blue background */
-}
 
 
 
@@ -784,10 +862,8 @@ button {
     padding: 8px; /* Give it some space */
 }
 
-.program-name-wrapper {
-    /* This contains your spans and will be hidden during edit */
-    line-height: 1.5;
-}
+
+
 
 .program-display-name {
     font-weight: bold;
@@ -862,3 +938,25 @@ button {
     color: black;
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
+
+
+
+::-webkit-scrollbar {
+  width: 4px; 
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.05); 
+  border-radius: 2px;
+}
+
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+

@@ -19,8 +19,32 @@
 
 
     <title>Side-Ki Deck</title>
-    <link rel="stylesheet" href="style.css">
+   
     <script type="module" src="script.js" defer></script>
+    <script src="./sweetalert2/sweetalert2.all.min.js"></script>
+    
+
+    <!-- CodeMirror-->
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/display/placeholder.min.js"></script>
+    <!-- AutoClose-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    
+    <!--Autocomplete-->
+    <!-- 3. ADD THE AUTOCOMPLETE ADDON AND ITS CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+
+    <!--AutoHotKey Mode-->
+     <link rel="stylesheet" href="codemirror-ahk/vscode-light.css">
+     <script src="codemirror-ahk/autohotkey.js"></script>
+    <!-- The Placeholder Addon -->
+  
+
+     <link rel="stylesheet" href="style.css">
+    
+   
 </head>
 
 <body>
@@ -100,7 +124,7 @@
                                 
                             </div>
                             <div style="display: flex; flex-direction: column;">
-                                <label for="window-title-input" style="padding: 3px 2px;"><strong>Window Title:</strong></label>
+                                <label for="window-title-input" style="padding: 3px 2px;"><strong>Window Title(s) (Regex):</strong></label>
                                 <input type="text" id="window-title-input" placeholder="(Optional) e.g., Document Name"
                                     style="width: 95%;">
                             </div>
@@ -128,7 +152,7 @@
                         <div class="editor-wrapper">
                             <label for="script-editor-down"><strong>Code for Key Down: </strong><span
                                     id="current-key-name-down">None</span></label>
-                            <textarea id="script-editor-down" placeholder="Click a key..." disabled></textarea>
+                           <textarea id="script-editor-down" placeholder="Click a key..." disabled></textarea>
                         </div>
                         <div class="editor-wrapper">
                             <label for="script-editor-up"><strong>Code for Key Up (Release):</strong></label>
@@ -155,17 +179,39 @@
     <!--                   FOOTER BAR                  -->
     <!-- ======================================================= -->
     <div id="footer">
-        <button id="save-btn">
-             <span class="material-symbols-outlined">save_as</span>
-            Save</button>
-        <button id="run-btn" title="Run the generated AHK script">
-            <span class="material-symbols-outlined">play_arrow</span>
-            Run</button>
-        <button id="stop-all-btn" title="Closes the AHK script and the MultiKB process">
-             <span class="material-symbols-outlined">stop</span>
-            Stop</button>
-        <!--<button id="reload-btn" title="Stop the old script and run the new one">Reload</button>-->    
-        <p id="status-message"></p>
+        <div id="footer-left">
+            <button id="save-btn">
+                <span class="material-symbols-outlined">save_as</span>
+                Save</button>
+            <button id="run-btn" title="Run the AHK Script with MultiKB in Raw Input/Keyboard Hook Mode. (limited app interception but more stable)">
+                <span class="material-symbols-outlined">play_arrow</span>
+                Run (RIKH)</button>
+            <button id="run-driver-btn" title="Run the AHK Script with MyKBD in Driver Mode. (universal app interception but less stable)">
+                <span class="material-symbols-outlined">play_arrow</span>
+                Run (Driver)</button>    
+            <button id="stop-all-btn" title="Closes the AHK script and the MultiKB process">
+                <span class="material-symbols-outlined">stop</span>
+                Stop</button>
+                
+           <!--<button id="reload-btn" title="Stop the old script and run the new one">Reload</button>-->    
+             <p id="status-message"></p>       
+        </div>   
+
+        <div id="footer-right">
+            <button id="config-folder-btn" title="Closes the AHK script and the MultiKB process">
+                <span class="material-symbols-outlined">topic</span>Config Folder
+            </button> 
+            <button id="config-file-btn" title="Closes the AHK script and the MultiKB process">
+                <span class="material-symbols-outlined">display_settings</span>Config File
+            </button>
+            <button id="universal-macros-btn" title="Open universal macros script file">
+                    <span class="material-symbols-outlined">orbit</span>
+            </button>
+             <button id="kb-log-btn" title="Open MacroMyKB folder">
+                <span class="material-symbols-outlined">browse_activity</span>
+             </button>
+      
+      
     </div>
 
 
@@ -176,7 +222,8 @@
     <!-- Template for an item in the main program list -->
     <template id="program-item-template">
         <div class="program-item">
-
+            <!--reorder up button-->
+           
             <div class="program-name" style="display: flex;">
                 <img class="program-list-icon">
                 <div class="program-name-wrapper">
@@ -187,7 +234,19 @@
 
             <input type="text" class="program-rename-input">
 
-            <button class="delete-btn" style="float: right;">X</button>
+            <div class="program-item-controls">
+                
+                <button class="reorder-btn up" title="Move Up">
+                    <span class="material-symbols-outlined">arrow_upward</span>
+                 </button>
+                <button class="delete-btn" style="float: right;">
+                    <span class="material-symbols-outlined">remove</span>
+                </button>
+            </div>
+            
+           
+            
+            
         </div>
     </template>
 

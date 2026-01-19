@@ -1,9 +1,13 @@
+const runDriver = true;
+
 const { ipcRenderer } = require("electron");
+
 const path = require("path");
 const fs = require("fs").promises;
-const { exec, spawn } = require("child_process");
-const { globalShortcut } = require("electron");
+const { exec, spawn, spawnSync } = require("child_process");
 const { escape } = require("querystring");
+const { verify } = require("crypto");
+const { stdout } = require("process");
 
 //import GlobalShortcutManager from './GlobalShortcutManager.js';
 
@@ -14,9 +18,13 @@ const DEPS_DIR = appInfo.isPackaged
   ? path.join(process.resourcesPath, "deps")
   : path.join(appInfo.appPath, "deps");
 //const CONFIG_DIR = path.join(process.cwd(), './config');
-const USER_DIR = path.join(appInfo.userDataPath, "config");
-const SETTINGS_JSON_PATH = path.join(USER_DIR, "user-settings.json");
-const AHK_SCRIPT_PATH = path.join(USER_DIR, "user-settings.ahk");
+const USER_CONFIG_DIR = path.join(appInfo.userDataPath, "config");
+const SETTINGS_JSON_PATH = path.join(USER_CONFIG_DIR, "user-settings.json");
+const AHK_SCRIPT_PATH = path.join(USER_CONFIG_DIR, "user-settings.ahk");
+const AHK_CONFIG_SCRIPT_PATH = path.join(USER_CONFIG_DIR, "kb-config.ahk");
+const AHK_SERVER_SCRIPT_PATH = path.join(USER_CONFIG_DIR, "kb-server.ahk");
+const UNIVERSAL_MACROS_PATH = path.join(USER_CONFIG_DIR, "um-config.ahk");
+
 // Add this line around line 13 in your script.js
 
 const AHK_EXE_PATH = appInfo.ahkPath;
@@ -113,13 +121,73 @@ let selectedKeyName = null;
 let isEnabled = false;
 let activeModifier = null;
 
+let editorDown;
+let editorUp;
+
+ editorDown = CodeMirror.fromTextArea(document.getElementById('script-editor-down'), {
+            mode: "text/x-autohotkey",
+            theme: "vscode-light",
+            placeholder: '; Optional Title (place it after a ";") \n\nActions on key press...',
+            lineNumbers: true,
+            autoCloseBrackets: true,
+            extraKeys: {
+                "Tab": "indentMore",       // Standard tab behavior
+                "Shift-Tab": "indentLess",  // Un-indent
+                "Ctrl-Space": "autocomplete"
+    
+            }
+ });
+
+editorUp = CodeMirror.fromTextArea(document.getElementById('script-editor-up'), {
+            mode: "text/x-autohotkey",
+            theme: "vscode-light",
+            placeholder: "Actions for key release...",
+            lineNumbers: true,
+            extraKeys: {
+                "Tab": "indentMore",       // Standard tab behavior
+                "Shift-Tab": "indentLess",  // Un-indent
+                "Ctrl-Space": "autocomplete"
+    
+            }
+});
+
+// A function to show hints, which we'll call from an event listener
+const showHints = (editor, event) => {
+    // Don't show hints for non-letter keys (like Enter, space, semicolon, etc.)
+    const char = event.text[0];
+    if (!/[a-zA-Z_]/.test(char)) {
+        return;
+    }
+    
+    // Programmatically open the autocomplete menu
+    editor.showHint({ completeSingle: false });
+};
+
+// Attach this event listener to BOTH editors
+editorDown.on('inputRead', showHints);
+editorUp.on('inputRead', showHints);
+
 // ================================================================= //
 //                      FUNCTION DEFINITIONS                         //
 // ================================================================= //
 
+async function loadUniversalMacros(isLog = false){
+    try{   
+        await fs.access(UNIVERSAL_MACROS_PATH);
+        if(isLog) console.log("Universal Macros exist. Adding to script...")
+        UniversalMacros =  await fs.readFile(UNIVERSAL_MACROS_PATH, "utf8");
+    }catch{
+        if(isLog) console.log("No Universal Macros file detected...");
+        document.getElementById("universal-macros-btn").style = "display : none;";
+        UniversalMacros = "";
+    }
+}
+
 async function initialize() {
   renderQwertyKeyboard();
   renderNumpadKeyboard();
+  
+  loadUniversalMacros(true);
 
   try {
     const fileContent = await fs.readFile(SETTINGS_JSON_PATH, "utf8");
@@ -161,6 +229,7 @@ async function initialize() {
 }
 
 function renderUI() {
+    
   renderProgramList();
   renderProfileDetails();
   updateKeyboardVisuals();
@@ -177,6 +246,7 @@ const stopAllProcesses = async () => {
   const killProcess = (exeName) => {
     return new Promise((resolve) => {
       exec(`taskkill /IM "${exeName}"`, (error, stdout, stderr) => {
+        console.log("Trying to kill task..." + exeName);
         if (error) {
           // If the process wasn't found, it's not an error for us.
           if (stderr && stderr.toLowerCase().includes("not found")) {
@@ -323,7 +393,10 @@ async function showProcessList() {
         let processes = [];
         if (process.platform === 'win32') {
             const stdout = await execPromise('wmic process where "ExecutablePath is not null" get ExecutablePath,Name /format:csv');
+         
+
             const lines = stdout.trim().split('\n').slice(1);
+            
             const uniqueProcs = new Map();
             lines.forEach(line => {
                 const parts = line.split(',');
@@ -442,8 +515,9 @@ function renderProfileDetails() {
     const currentProgramNameSpan = document.getElementById("current-program-name");
     const profileSelect = document.getElementById("mapping-profile-select");
     const deleteProfileBtn = document.getElementById("delete-profile-btn");
-    const editorDown = document.getElementById("script-editor-down");
-    const editorUp = document.getElementById("script-editor-up");
+    
+    
+
     const currentKeyNameSpanDown = document.getElementById("current-key-name-down");
 
     const currentProgram = programProfiles[selectedProgramName];
@@ -487,24 +561,36 @@ function renderProfileDetails() {
 
     currentKeyNameSpanDown.textContent = selectedKeyName || "None";
 
-    if (selectedKeyName) {
-        editorDown.disabled = false;
-        editorUp.disabled = false;
+   // Assume editorDown and editorUp are the CodeMirror instances from the previous example
 
-        const hotkeyData = hotkeyMap[selectedKeyName]; // Read from the correct map
+    if (selectedKeyName) {
+        // Enable the editors
+        editorDown.setOption("readOnly", false);
+        editorUp.setOption("readOnly", false);
+
+        const hotkeyData = hotkeyMap[selectedKeyName]; // Read from your map
 
         if (hotkeyData) {
-            editorDown.value = hotkeyData.down || "";
-            editorUp.value = hotkeyData.up || "";
+            // Use setValue() to update the content
+            editorDown.setValue(hotkeyData.down || "");
+            editorUp.setValue(hotkeyData.up || "");
         } else {
-            editorDown.value = "";
-            editorUp.value = "";
+            editorDown.setValue("");
+            editorUp.setValue("");
         }
+
+        // It's good practice to focus the editor after enabling it
+        
+        editorDown.focus();
+
     } else {
-        editorDown.disabled = true;
-        editorUp.disabled = true;
-        editorDown.value = "";
-        editorUp.value = "";
+        // Disable the editors
+        editorDown.setOption("readOnly", "nocursor");
+        editorUp.setOption("readOnly", "nocursor");
+        
+        // Clear their content
+        editorDown.setValue("");
+        editorUp.setValue("");
     }
 
     const cycleHotkey = currentProgram.cycleHotkey || "";
@@ -723,9 +809,636 @@ function keyToVk(keyName) {
 
 
 
-// REPLACE your entire generateAhkScript function with this corrected version.
+/**
+ * Generates the AHK hotkey script content based on the new server architecture,
+ * while maintaining compatibility with the existing JSON data structure.
+ */
+
+
+let UniversalMacros;
+
+const isUniversalMacros = true;
+const safeDepsDir = DEPS_DIR ? DEPS_DIR.replace(/\\/g, "\\\\").replace(/`/g, '``').replace(/"/g, '""') : ".";
+
+
+// This is the final, verified server script.
+// It uses atomic passthrough sends and correct lonely-modifier logic.
+const serverAHKScript = `#Requires AutoHotkey v2.0
+
+#SingleInstance Ignore
+Persistent
+SendMode "Input"
+
+#Include "${safeDepsDir}\\Lib\\_socket.ahk"
+#Include "${safeDepsDir}\\Lib\\jsongo.v2.ahk"
+#Include "kb-config.ahk"
+
+global activeKeys := Map()
+global eventQueue := []
+global pressedKeys := Map()
+
+
+
+; --- Server, Client Callbacks, and Queue Processor (UNCHANGED) ---
+ServerCallback(socket, event, errCode)
+{
+    if (event = "Accept")
+    {
+        client := socket.Accept()
+        client.cb := ClientCallback
+    }
+}
+
+ClientCallback(socket, event, errCode)
+{
+    if (event = "Read")
+    {
+        buf := socket.Recv()
+        if (buf.size = 0)
+        {
+            return
+        }
+        data := StrGet(buf, "UTF-8")
+        if (StrLen(data) = 0)
+        {
+            return
+        }
+
+        for i, jsonData in StrSplit(data, "\`n", "\`r")
+        {
+            if (Trim(jsonData) = "")
+            {
+                
+                continue
+            }
+            try
+            {
+                parsedJson := jsongo.Parse(jsonData)
+
+    
+                if (parsedJson.Has("type"))
+                {
+                   
+                    if (parsedJson["type"] = "keyEvent")
+                    {
+                        ; This is a key event, push it to the queue for processing.
+                        keyEvent := parsedJson
+    
+                        eventQueue.Push(keyEvent)
+                    }
+                    else if (parsedJson["type"] = "connectionStatus")
+                    {
+                        ; This is the connection confirmation. Handle it immediately.
+                        ; This is where you can trigger your other action.
+                        ShowToast("MacroMyKB Loaded!")
+                    }
+                }
+            }
+            catch as e
+            {
+                ; Log errors, but don't use ToolTip/MsgBox as they cause lag
+                FileAppend("JSON PARSE ERROR: " e.Message "\`n", "ahk_error.log")
+            }
+        }
+    }
+    else if (event = "Close")
+    {
+        socket.Close()
+    }
+}
+
+ProcessEventQueue()
+{
+    Critical "On"
+    if (eventQueue.Length = 0)
+    {
+        Critical "Off"
+        return
+    }
+    ; Pull the OLDEST event from the queue (First-In, First-Out)
+    keyEvent := eventQueue.RemoveAt(1)
+    
+    ; Now that we have our event in a serialized, orderly fashion, process it.
+    ProcessKeyPress(keyEvent)
+    Critical "Off"
+}
+
+
+; --- FINAL, ROBUST LOGIC ---
+ProcessKeyPress(keyEvent)
+{
+    global activeKeys, pressedKeys
+    keyName := GetKeyNameFromCode(keyEvent["key"])
+    local deviceName := keyEvent["device"]["name"]
+
+
+    if (keyName = "")
+    {
+        return
+    }
+    
+    if (keyEvent["state"] = "down")
+    {
+        activeKeys[keyName] := true
+    }
+    else
+    {
+        activeKeys.Delete(keyName)
+    }    
+        if (HandleHotkey(keyName, keyEvent["state"], activeKeys))
+        {       
+            return ; Consume the keypress, whether it was up or down.
+        }
+        
+        local isModifier := ( InStr(keyName, "Control") || InStr(keyName, "Alt") || InStr(keyName, "Shift") || InStr(keyName, "Win") )
+        
+        ; --- PASSTHROUGH PATH ---
+        ; If we reach here, HandleHotkey returned false, so this is NOT a macro.
+        if (keyEvent["state"] = "down")
+        {
+            if (!pressedKeys.Has(keyName))
+            {
+                Send("{Blind}{" . keyName . " Down}")
+                  if (!isModifier)
+                {
+                    timer := KeyRepeatHandler(keyName)
+                    timer.Start()
+                    pressedKeys[keyName] := timer
+                }
+            }
+        }
+        else if (keyEvent["state"] == "up")
+        {
+            Send("{Blind}{" . keyName . " Up}")
+            if (pressedKeys.Has(keyName))
+            {
+                pressedKeys[keyName].Stop()
+                pressedKeys.Delete(keyName)
+            }
+        }    
+}
+
+
+
+; --- KeyRepeatHandler is simple again ---
+class KeyRepeatHandler
+{
+    keyName := ""
+    initialFunc := ""
+    repeatFunc := ""
+    initialTimerHasFired := false
+
+    __New(keyName)
+    {
+        this.keyName := keyName
+        this.initialFunc := this.InitialRepeat.Bind(this)
+        this.repeatFunc := this.SubsequentRepeat.Bind(this)
+    }
+
+    Start()
+    {
+        this.initialTimerHasFired := false
+        SetTimer(this.initialFunc, -500)
+    }
+
+    InitialRepeat()
+    {
+        Critical "On"
+        this.initialTimerHasFired := true
+        Send("{Blind}{" . this.keyName . " Down}")
+        SetTimer(this.repeatFunc, 30)
+        Critical "Off"
+    }
+
+    SubsequentRepeat()
+    {
+        Send("{Blind}{" . this.keyName . " Down}")
+    }
+
+    Stop()
+    {
+        Critical "On"
+        if (!this.initialTimerHasFired)
+        {
+            SetTimer(this.initialFunc, 0)
+        }
+        SetTimer(this.repeatFunc, 0)
+        Critical "Off"
+    }
+}
+
+
+; --- GetKeyNameFromCode, Startup, ExitFunc, etc. are UNCHANGED ---
+GetKeyNameFromCode(code) {
+    static keyMap := Map("4","a","5","b","6","c","7","d","8","e","9","f","10","g","11","h","12","i","13","j","14","k","15","l","16","m","17","n","18","o","19","p","20","q","21","r","22","s","23","t","24","u","25","v","26","w","27","x","28","y","29","z","30","1","31","2","32","3","33","4","34","5","35","6","36","7","37","8","38","9","39","0","40","Enter","41","Escape","42","Backspace","43","Tab","44","Space","45","-","46","=","47","[","48","]","49","\\","51",";","52","'","53","\`\`","54",",","55",".","56","/","57","CapsLock","58","F1","59","F2","60","F3","61","F4","62","F5","63","F6","64","F7","65","F8","66","F9","67","F10","68","F11","69","F12", "70", "PrintScreen", "76","Delete","79","Right","80","Left","81","Down","82","Up","224","LControl","225","LShift","226","LAlt","227","LWin","228","RControl","229","RShift","230","RAlt","231","RWin")
+    codeStr := "" . code
+    return keyMap.Has(codeStr) ? keyMap[codeStr] : ""
+}
+
+server := winsock("server", ServerCallback, "IPV4", "TCP", "Stream")
+server.Bind("127.0.0.1", "8080")
+server.Listen()
+SetTimer(ProcessEventQueue, 15)
+
+
+global mykbDir := "${safeDepsDir}\\MacroMyKB\\"
+try {
+    
+    ; commandToRun := A_ComSpec ' /c ""' mykbDir '\\start-hidden.bat" > "' mykbDir '\\mykb_startup.log" 2>&1"'
+    commandToRun := A_ComSpec ' /c ""' mykbDir '\\start-hidden.bat"'
+    
+    ToolTip("Running MyKB...")
+    Run commandToRun, mykbDir, "Hide"
+    ToolTip()
+} catch {
+    MsgBox "The Run command itself failed. Check AHK permissions."
+}
+
+message := ""
+
+ExitFunc(ExitReason, ExitCode) {
+
+    ToolTip("Trying to Exit...")
+    if (ExitReason = "Reload") {
+        return
+    }else{
+        try {
+           ShowToast("Closing MacroMyKB...", , false)
+           
+           RunWait '"' mykbDir '\\stop-hidden.bat"', mykbDir, "Hide"
+           
+
+           ProcessClose("node.exe")
+          
+        
+
+           
+        } catch as e{
+            
+            MsgBox("Failed to Close... : " e)
+        }
+    }
+}
+
+^+!F16::{
+    Reload()
+}
+OnExit(ExitFunc)
+
+Return 
+`;     
+
+// REPLACE your existing generateAhkScriptDriver function with this one.
+function generateAhkScriptDriver() {
+
+    // --- HELPER FUNCTIONS and DATA PREPARATION (UNCHANGED) ---
+    const sanitizeForFuncName = (name) => {
+        const specialCharsMap = {
+            '`': 'Backtick', '-': 'Hyphen', '=': 'Equals', '[': 'LBracket', ']': 'RBracket',
+            '\\': 'Backslash', ';': 'Semicolon', "'": 'Quote', ',': 'Comma', '.': 'Period',
+            '/': 'Slash', ' ': 'Space'
+        };
+        if (specialCharsMap[name]) return specialCharsMap[name];
+        const sanitized = name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/^(\d)/, '_$1');
+        return sanitized || 'unnamed';
+    };
+
+    const parseAhkHotkey = (hotkeyString) => {
+        if (!hotkeyString) return null;
+        let key = hotkeyString.toUpperCase();
+        const result = { ctrl: false, alt: false, shift: false };
+        if (key.includes('^')) { result.ctrl = true; key = key.replace(/\^/g, ''); }
+        if (key.includes('!')) { result.alt = true; key = key.replace(/!/g, ''); }
+        if (key.includes('+')) { result.shift = true; key = key.replace(/\+/g, ''); }
+        result.key = key.trim();
+        if (result.key === "`") { result.key = "``"; }
+        return result;
+    };
+
+    let functionsString = ``;
+    let activeProfilesInitString = ``;
+    const programDataForAhk = JSON.parse(JSON.stringify(programProfiles));
+    for (const progKey in programDataForAhk) {
+        const escapedProgKey = progKey.replace(/["`]/g, m => '`' + m);
+        const escapedActiveProfile = programDataForAhk[progKey].activeProfile.replace(/["`]/g, m => '`' + m);
+        activeProfilesInitString += `    ActiveProfiles["${escapedProgKey}"] := "${escapedActiveProfile}"\n`;
+        programDataForAhk[progKey].cycleHotkeyData = parseAhkHotkey(programDataForAhk[progKey].cycleHotkey);
+        if (programDataForAhk[progKey].profiles) {
+            for (const profKey in programDataForAhk[progKey].profiles) {
+                const profile = programDataForAhk[progKey].profiles[profKey];
+                for (const layerKey in profile) {
+                    const layer = profile[layerKey];
+                    if (typeof layer !== 'object' || layer === null) continue;
+                    const newLayerWithUppercaseKeys = {};
+                    for (const hotkeyKey in layer) {
+                        const hotkey = layer[hotkeyKey];
+                        const sanProg = sanitizeForFuncName(progKey);
+                        const sanProf = sanitizeForFuncName(profKey);
+                        const sanHotkey = sanitizeForFuncName(hotkeyKey);
+                        if (hotkey.down && hotkey.down.trim() !== '') {
+                            const funcName = `Func_${sanProg}_${sanProf}_${layerKey}_${sanHotkey}_down`;
+                           const verify = ``
+                            functionsString += `${funcName}() {\n${verify}\n${hotkey.down}\n}\n\n`;
+                            hotkey.down = funcName;
+                        }
+                        if (hotkey.up && hotkey.up.trim() !== '') {
+                            const funcName = `Func_${sanProg}_${sanProf}_${layerKey}_${sanHotkey}_up`;
+                            functionsString += `${funcName}() {\n${hotkey.up}\n}\n\n`;
+                            hotkey.up = funcName;
+                        }
+                        let standardizedKey = hotkeyKey.toUpperCase();
+                        if (standardizedKey === "`") { standardizedKey = "``"; }
+                        newLayerWithUppercaseKeys[standardizedKey] = hotkey;
+                    }
+                    profile[layerKey] = newLayerWithUppercaseKeys;
+                }
+            }
+        }
+    }
+    Object.values(programDataForAhk).forEach(prog => delete prog.cycleHotkey);
+    const programDataString = JSON.stringify(programDataForAhk);
+    let contextIfChainString = ``;
+    for (const progKey in programDataForAhk) {
+        if (progKey !== "Global" && programDataForAhk[progKey].exeName) {
+            const program = programDataForAhk[progKey];
+            const prefix = contextIfChainString === '' ? 'if' : 'else if';
+            const titlePart = program.windowTitle ? program.windowTitle.replace(/["`]/g, m => '`' + m) + " " : "";
+            const exeName = program.exeName.replace(/["`]/g, m => '`' + m);
+            const escapedProgKey = progKey.replace(/["`]/g, m => '`' + m);
+            contextIfChainString += `    ${prefix} (WinActive("${titlePart}ahk_exe ${exeName}"))\n`;
+            contextIfChainString += `    {\n`;
+            contextIfChainString += `        currentContext := "${escapedProgKey}"\n`;
+            contextIfChainString += `    }\n`;
+        }
+    }
+
+    // --- SCRIPT ASSEMBLY ---
+    const script = `#Requires AutoHotkey v2.0
+#SingleInstance Force
+SendMode "Input"
+#Include "${safeDepsDir}\\Lib\\UISearch.ahk"
+#Include "${safeDepsDir}\\Lib\\jsongo.v2.ahk"
+SetTitleMatchMode "RegEx"
+
+; --- State and Data (Auto-Generated) ---
+global ProgramData := jsongo.Parse('${programDataString.replace(/'/g, "`'")}')
+global ActiveProfiles := Map()
+${activeProfilesInitString}
+
+; --- Dynamically Generated Functions (Auto-Generated) ---
+${functionsString}
+
+${(isUniversalMacros) ? UniversalMacros : ""}
+
+; =====================================================================================
+; --- Core Hotkey Logic (Simplified) ---
+; =====================================================================================
+
+HandleHotkey(keyName, state, activeKeys) {
+    local currentContext := "Global"
+    ${contextIfChainString}
+        
+    if (state = "down" && _CheckAndCycleProfile(currentContext, keyName, activeKeys))
+    {
+        return true
+    }
+    
+    if (currentContext != "Global")
+    {
+        if (_ExecuteHotkeyForContext(currentContext, keyName, state, activeKeys))
+        {
+            return true
+        }
+    }
+
+    if (_ExecuteHotkeyForContext("Global", keyName, state, activeKeys))
+    {
+        return true
+    }
+
+    return false
+}
+
+_ExecuteHotkeyForContext(contextName, keyName, state, activeKeys) {
+    if (!ProgramData.Has(contextName))
+    {
+        return false
+    }
+
+    local program := ProgramData[contextName]
+    local activeProfileName := ActiveProfiles[contextName]
+    if (!program.Has("profiles") || !program["profiles"].Has(activeProfileName))
+    {
+        return false
+    }
+
+    local profile := program["profiles"][activeProfileName]
+    local ctrlHeld := activeKeys.Has("LControl") || activeKeys.Has("RControl")
+    local altHeld := activeKeys.Has("LAlt") || activeKeys.Has("RAlt")
+    local shiftHeld := activeKeys.Has("LShift") || activeKeys.Has("RShift")
+    
+    local layerName := ""
+    if (ctrlHeld && !altHeld && !shiftHeld) {
+        layerName := "ctrl_hotkeys"
+    } else if (altHeld && !ctrlHeld && !shiftHeld) {
+        layerName := "alt_hotkeys"
+    } else if (shiftHeld && !ctrlHeld && !altHeld) {
+        layerName := "shift_hotkeys"
+    } else if (!ctrlHeld && !altHeld && !shiftHeld) {
+        layerName := "hotkeys"
+        
+    } else {
+        return false
+    }
+
+    local upperKeyName := StrUpper(keyName)
+    if (profile.Has(layerName) && profile[layerName].Has(upperKeyName))
+    {
+        local hotkeyData := profile[layerName][upperKeyName]
+        local action := (state = "down") ? "down" : "up"
+        
+        if (hotkeyData.Has(action))
+        {
+            local funcName := hotkeyData[action]
+            if (funcName && StrLen(Trim(funcName)) > 0 && Type(%funcName%) = "Func")
+            {
+                try
+                {
+                   
+                    if(altHeld){
+                        Send "{Blind}{vkE8}"
+                        SendEvent '{Alt Up}'   
+                    }
+                    if(shiftHeld)
+                        SendEvent '{Shift Up}'
+                    if(ctrlHeld)
+                        SendEvent '{Ctrl Up}'   
+
+                    %funcName%()
+
+                    if(altHeld){    
+                        Send '{Alt Down}'
+                        Send "{Blind}{vkE8}"
+                    }
+                    if (ctrlHeld)
+                        SendEvent "{Ctrl Down}" 
+                    if (shiftHeld)
+                        SendEvent "{Shift Down}"
+                }
+                catch as e
+                {
+                    ShowProfileToast("Hotkey Error: " . funcName, "Error")
+                }
+            }
+        }
+        return true ; A hotkey definition was found, consume the keypress.
+    }
+    return false
+}
+
+_CheckAndCycleProfile(contextName, keyName, activeKeys) {
+    _TestCycle(progName) {
+        if (!ProgramData.Has(progName))
+        {
+             return false
+        }
+        local program := ProgramData[progName]
+        if (!program.Has("cycleHotkeyData") || !program["cycleHotkeyData"])
+        {
+            return false
+        }
+        local cycleData := program["cycleHotkeyData"]
+        local upperKeyName := StrUpper(keyName)
+        if (cycleData["key"] != upperKeyName)
+        {
+            return false
+        }
+        local ctrlHeld := activeKeys.Has("LControl") || activeKeys.Has("RControl")
+        local altHeld := activeKeys.Has("LAlt") || activeKeys.Has("RAlt")
+        local shiftHeld := activeKeys.Has("LShift") || activeKeys.Has("RShift")
+        if (cycleData["ctrl"] != ctrlHeld || cycleData["alt"] != altHeld || cycleData["shift"] != shiftHeld)
+        {
+            return false
+        }
+        local profileNames := []
+        if (program.Has("profiles"))
+        {
+            for name, _ in program["profiles"]
+            {
+                profileNames.Push(name)
+            }
+        }
+        if (profileNames.Length > 1)
+        {
+            local activeProfileName := ActiveProfiles[progName]
+            local currentIndex := -1
+            for i, name in profileNames
+            {
+                if (name == activeProfileName)
+                {
+                    currentIndex := i
+                    break
+                }
+            }
+            local nextIndex := Mod(currentIndex, profileNames.Length) + 1
+            ActiveProfiles[progName] := profileNames[nextIndex]
+            local displayName := program.Has("displayName") ? program["displayName"] : progName
+            ShowProfileToast(displayName . " -> " . profileNames[nextIndex])
+        }
+        return true
+    }
+    if (contextName != "Global" && _TestCycle(contextName))
+    {
+        return true
+    }
+    return _TestCycle("Global")
+}
+
+ShowProfileToast(profileText, title := "Profile Changed") {
+    try
+    {
+        ToastGui := Gui("+AlwaysOnTop -Caption +ToolWindow", title)
+        ToastGui.BackColor := "E6E6EE"
+        ToastGui.SetFont("s18 c1A1A1A", "Segoe UI")
+        ToastGui.Add("Text", "w300 Center", profileText)
+        ToastGui.Show("NoActivate")
+        SetTimer(() => ToastGui.Destroy(), -2000)
+    }
+}
+ShowToast(profileText, title := "Profile Changed", hasTimer := true) {
+    try
+    {
+        local ToastGui := Gui("+AlwaysOnTop -Caption +ToolWindow", title)
+        
+        ToastGui.BackColor := "1E1E1E" 
+        ToastGui.SetFont("s16 cF0F0F0 Bold", "Segoe UI") 
+        
+    
+        local textCtrl := ToastGui.Add("Text", "w450 Center", profileText)
+        textCtrl.Margin := "0, 2" ; 0px left/right, 20px top/bottom
+
+        ; --- The rest of the logic remains the same ---
+        ; It will now work correctly because the GUI's size is determined by our large text control.
+        ToastGui.Show("NoActivate Hide")
+        local w, h
+        ToastGui.GetPos(,, &w, &h)
+        local xPos := (A_ScreenWidth - w) / 2
+        local yPos := A_ScreenHeight - h - 60
+
+        WinSetTransparent(180, ToastGui)
+
+        
+        ToastGui.Show("NoActivate x" . xPos . " y" . yPos)
+        if(hasTimer)
+            SetTimer(() => ToastGui.Destroy(), -2000)
+    }
+}
+
+
+`;
+    return script;
+}
+
+
+
+
+
 function generateAhkScript() {
     // --- HELPER FUNCTION: Sanitizes a string to be a valid AHK function name part ---
+    
+        // --- (NEW) HELPER FUNCTION: Parses an AHK hotkey string ---
+    const parseAhkHotkey = (hotkeyString) => {
+        if (!hotkeyString) return null;
+
+        let key = hotkeyString.toUpperCase();
+        const result = {
+            ctrl: false,
+            alt: false,
+            shift: false
+        };
+
+        // Check for modifier symbols and remove them
+        if (key.includes('^')) {
+            result.ctrl = true;
+            key = key.replace(/\^/g, '');
+        }
+        if (key.includes('!')) {
+            result.alt = true;
+            key = key.replace(/!/g, '');
+        }
+        if (key.includes('+')) {
+            result.shift = true;
+            key = key.replace(/\+/g, '');
+        }
+
+        result.key = key.trim();
+
+        
+
+        return result;
+    };
+    
+    
     const sanitizeForFuncName = (name) => {
         // Map special characters to descriptive text to avoid collisions.
         const specialCharsMap = {
@@ -785,9 +1498,7 @@ function generateAhkScript() {
     // Iterate through all profiles to generate functions and update the map data
     for (const progKey in dataForMap) {
         const program = dataForMap[progKey];
-        if (program.cycleHotkey) {
-            program.cycleHotkey = program.cycleHotkey.toUpperCase();
-        }
+         program.cycleHotkey = parseAhkHotkey(program.cycleHotkey);
         if (program.profiles) {
             for (const profKey in program.profiles) {
                 const profile = program.profiles[profKey];
@@ -796,9 +1507,6 @@ function generateAhkScript() {
                     const layer = profile[layerKey];
                     if (typeof layer !== 'object' || layer === null) continue;
 
-                    // =================================================================
-                    // --- THE FIX: Rebuild layer with UPPERCASE hotkey keys ---
-                    // =================================================================
                     const newLayerWithUppercaseKeys = {}; // Create a temporary object
                     for (const hotkeyKey in layer) {
                         const hotkey = layer[hotkeyKey];
@@ -816,14 +1524,9 @@ function generateAhkScript() {
                             functionsString += `${funcName}() {\n${hotkey.up}\n}\n\n`;
                             hotkey.up = funcName;
                         }
-                        // Add the processed hotkey to our temporary object using an UPPERCASE key
                         newLayerWithUppercaseKeys[hotkeyKey.toUpperCase()] = hotkey;
                     }
-                    // Replace the old layer in our data copy with the newly built one
                     profile[layerKey] = newLayerWithUppercaseKeys;
-                    // ===============================================================
-                    // --- END OF THE FIX ---
-                    // ===============================================================
                 }
             }
         }
@@ -831,8 +1534,9 @@ function generateAhkScript() {
 
     const allHotkeysAhkString = convertJsToAhkMap(dataForMap);
     const ahkSafeMultiKbPath = MULTIKB_EXE_PATH ? MULTIKB_EXE_PATH.replace(/\\/g, "\\\\").replace(/`/g, '``').replace(/"/g, '""') : "";
-    const safeDepsDir = DEPS_DIR ? DEPS_DIR.replace(/\\/g, "\\\\").replace(/`/g, '``').replace(/"/g, '""') : ".";
+    
 
+   
 
     // --- SCRIPT ASSEMBLY ---
     let script = `#Requires AutoHotkey v2.0
@@ -843,7 +1547,9 @@ SetWorkingDir A_InitialWorkingDir
 
 #Include "${safeDepsDir}\\Lib\\UISearch.ahk"
 
-; Check if MultiKB is running to prevent multiple instances
+
+
+
 if !ProcessExist("MultiKB_For_AutoHotkey.exe") {
     try {
         Run '"${ahkSafeMultiKbPath}"'
@@ -853,6 +1559,8 @@ if !ProcessExist("MultiKB_For_AutoHotkey.exe") {
 }
 
 
+${(isUniversalMacros) ? UniversalMacros : ""}
+
 ; ===================================================================
 ; --- CONFIGURATION & STATE (Auto-Generated) ---
 ; ===================================================================
@@ -860,9 +1568,9 @@ global MKB_DeviceNumber := 1
 global MKB_ProcessName := "MultiKB_For_AutoHotkey.exe"
 global MKB_Path := "${ahkSafeMultiKbPath}"
 
-; The entire configuration is loaded into this single Map.
 global AllData := ${allHotkeysAhkString}
 global ActiveProfiles := Map()
+global g_CurrentCatchList := Map()
 `;
 
     for (const progName in programProfiles) {
@@ -871,7 +1579,7 @@ global ActiveProfiles := Map()
         script += `ActiveProfiles["${escapedProgName}"] := "${escapedActiveProfile}"\n`;
     }
 
-    script += functionsString; // Add all the generated functions to the script
+    script += functionsString;
 
     script += `
 ; ===================================================================
@@ -882,33 +1590,38 @@ SendData(Text) {
     socket := -1
     try {
         wsaData := Buffer(400)
-        if (DllCall("ws2_32\\WSAStartup", "UShort", 0x0202, "Ptr", wsaData.Ptr) != 0)
+        if (DllCall("ws2_32\\WSAStartup", "UShort", 0x0202, "Ptr", wsaData.Ptr) != 0) {
             throw Error("WSAStartup failed")
+        }
         
         socket := DllCall("ws2_32\\socket", "Int", 2, "Int", 1, "Int", 6, "UPtr")
-        if (socket = -1 or socket = 0)
+        if (socket = -1 or socket = 0) {
             throw Error("Socket creation failed")
+        }
         
         sockaddr := Buffer(16, 0)
         NumPut("UShort", 2, sockaddr, 0)
         NumPut("UShort", DllCall("ws2_32\\htons", "UShort", 9001), sockaddr, 2)
         NumPut("UInt", DllCall("ws2_32\\inet_addr", "AStr", "127.0.0.1"), sockaddr, 4)
         
-        if (DllCall("ws2_32\\connect", "UPtr", socket, "Ptr", sockaddr.Ptr, "Int", 16) != 0)
+        if (DllCall("ws2_32\\connect", "UPtr", socket, "Ptr", sockaddr.Ptr, "Int", 16) != 0) {
             throw Error("Connection failed")
+        }
         
         dataToSend := Text . "\`n"
         requiredSize := StrPut(dataToSend, "UTF-8")
         dataBuffer := Buffer(requiredSize)
         StrPut(dataToSend, dataBuffer, "UTF-8")
         
-        if (DllCall("ws2_32\\send", "UPtr", socket, "Ptr", dataBuffer.Ptr, "Int", requiredSize - 1, "Int", 0) = -1)
+        if (DllCall("ws2_32\\send", "UPtr", socket, "Ptr", dataBuffer.Ptr, "Int", requiredSize - 1, "Int", 0) = -1) {
             throw Error("Send failed")
+        }
     } catch as e {
-        ; MsgBox("Network Error: " . e.Message) ; Uncomment for debugging
+        ; MsgBox("Network Error: " . e.Message)
     } finally {
-        if (socket != -1 and socket != 0)
+        if (socket != -1 and socket != 0) {
             DllCall("ws2_32\\closesocket", "UPtr", socket)
+        }
         DllCall("ws2_32\\WSACleanup")
     }
 }
@@ -953,17 +1666,17 @@ MainContextLoop() {
     }
 
     if (currentContextName == lastContextName && currentProfilesString == lastProfilesString) {
-        return ; Nothing has changed, so do nothing.
+        return
     }
 
-    local catchList := Map()
+    g_CurrentCatchList.Clear()
     if (AllData.Has(currentContextName)) {
         local activeProfileName := ActiveProfiles[currentContextName]
         if (AllData[currentContextName].Has("profiles") && AllData[currentContextName]["profiles"].Has(activeProfileName)) {
             local currentProfile := AllData[currentContextName]["profiles"][activeProfileName]
             for layerKey, layerMap in currentProfile {
                 for keyName, _ in layerMap {
-                    catchList[keyToVk(keyName)] := true
+                    g_CurrentCatchList[keyToVk(keyName)] := true
                 }
             }
         }
@@ -975,27 +1688,26 @@ MainContextLoop() {
             local globalProfile := AllData["Global"]["profiles"][globalProfileName]
             for layerKey, layerMap in globalProfile {
                 for keyName, _ in layerMap {
-                    catchList[keyToVk(keyName)] := true
+                    g_CurrentCatchList[keyToVk(keyName)] := true
                 }
             }
         }
     }
-
-    ; Always add all cycle hotkeys to the catch list
 `;
 
     for (const progName in programProfiles) {
         const program = programProfiles[progName];
-        if (program.cycleHotkey) {
-            const escapedHotkey = program.cycleHotkey.replace(/`/g, '``').replace(/"/g, '""').toUpperCase();
-            
-            script += `    catchList[keyToVk("${escapedHotkey}")] := true\n`;
+        const parsedHotkey = parseAhkHotkey(program.cycleHotkey); 
+        if (parsedHotkey) {
+            const baseKey = parsedHotkey.key;
+            const escapedKey = baseKey.replace(/`/g, '``').replace(/"/g, '""');
+            script += `    g_CurrentCatchList[keyToVk("${escapedKey}")] := true\n`;
         }
     }
 
     script += `
     local vkCodeArray := []
-    for vk, _ in catchList {
+    for vk, _ in g_CurrentCatchList {
         vkCodeArray.Push(vk)
     }
 
@@ -1022,10 +1734,12 @@ ShowProfileToast(profileText) {
 OnMessage(1325, MsgFunc)
 
 MsgFunc(wParam, lParam, msg, hwnd) {
-    OnUniqueKeyboard(wParam, lParam & 0xFF, (lParam & 0x100) > 0, (lParam & 0x1800) > 0, (lParam & 0x6000) > 0, (lParam & 0x8000) > 0)
+    OnUniqueKeyboard(wParam, lParam & 0xFF, (lParam & 0x100) > 0, (lParam & 0x200) > 0, (lParam & 0x400) > 0, (lParam & 0x800) > 0, (lParam & 0x1000) > 0, (lParam & 0x2000) > 0, (lParam & 0x4000) > 0, (lParam & 0x8000) > 0)
 }
 
-OnUniqueKeyboard(KeyboardNumber, VKeyCode, IsDown, AnyCtrl, AnyAlt, Shift) {
+OnUniqueKeyboard(KeyboardNumber, VKeyCode, IsDown, WasDown, IsExtended, LeftCtrl, RightCtrl, LeftAlt, RightAlt, Shift){
+    AnyCtrl := LeftCtrl || RightCtrl
+    AnyAlt := LeftAlt || RightAlt
     if (KeyboardNumber != MKB_DeviceNumber) {
         return
     }
@@ -1051,56 +1765,132 @@ OnUniqueKeyboard(KeyboardNumber, VKeyCode, IsDown, AnyCtrl, AnyAlt, Shift) {
     script += `
     local keyString := vkCodeToKey(VKeyCode)
     if (keyString == "") {
-        return ; If the key isn't in our map, we can't do anything with it.
+        return
     }
+    
+    ProcessKeyEvent(currentContextName, VKeyCode, keyString, IsDown, AnyCtrl, AnyAlt, Shift)
+}
 
-    ; --- 1. Check for Profile Cycle Hotkey ---
+ProcessKeyEvent(currentContextName, VKeyCode, keyString, IsDown, AnyCtrl, AnyAlt, Shift) {
     local currentProgramData := AllData[currentContextName]
-    if (currentProgramData.Has("cycleHotkey") && currentProgramData["cycleHotkey"] == keyString && !IsDown) {
-        local profileNames := []
-        if (currentProgramData.Has("profiles")) {
-            for name, _ in currentProgramData["profiles"] {
-                profileNames.Push(name)
-            }
-        }
-        if (profileNames.Length > 1) {
-            local activeProfileName := ActiveProfiles[currentContextName]
-            local currentIndex := -1
-            for i, name in profileNames {
-                if (name == activeProfileName) {
-                    currentIndex := i
-                    break
+    local globalProgramData := AllData["Global"]
+
+    if (currentContextName != "Global" && currentProgramData.Has("cycleHotkey") && currentProgramData["cycleHotkey"]) {
+        local cycleData := currentProgramData["cycleHotkey"]
+        if (cycleData["key"] == keyString && cycleData["ctrl"] == AnyCtrl && cycleData["alt"] == AnyAlt && cycleData["shift"] == Shift && IsDown) {
+            local profileNames := []
+            if (currentProgramData.Has("profiles")) {
+                for name, _ in currentProgramData["profiles"] {
+                    profileNames.Push(name)
                 }
             }
-            local nextIndex := Mod(currentIndex, profileNames.Length) + 1
-            ActiveProfiles[currentContextName] := profileNames[nextIndex]
-            local displayName := currentProgramData.Has("displayName") ? currentProgramData["displayName"] : currentContextName
-            ShowProfileToast(displayName . " -> " . profileNames[nextIndex])
-            MainContextLoop()
+            if (profileNames.Length > 1) {
+                local activeProfileName := ActiveProfiles[currentContextName]
+                local currentIndex := -1
+                for i, name in profileNames {
+                    if (name == activeProfileName) {
+                        currentIndex := i
+                        break
+                    }
+                }
+                local nextIndex := Mod(currentIndex, profileNames.Length) + 1
+                ActiveProfiles[currentContextName] := profileNames[nextIndex]
+                local displayName := currentProgramData.Has("displayName") ? currentProgramData["displayName"] : currentContextName
+                ShowProfileToast(displayName . " -> " . profileNames[nextIndex])
+            
+                return
+            }
+        }
+    }
+
+    if (globalProgramData.Has("cycleHotkey") && globalProgramData["cycleHotkey"]) {
+        local cycleData := globalProgramData["cycleHotkey"]
+        if (cycleData["key"] == keyString && cycleData["ctrl"] == AnyCtrl && cycleData["alt"] == AnyAlt && cycleData["shift"] == Shift && IsDown) {
+            local isOverridden := false
+            if (currentContextName != "Global") {
+                if (IsHotkeyDefined(currentContextName, keyString, AnyCtrl, AnyAlt, Shift)) {
+                    isOverridden := true
+                }
+            }
+            
+            if (!isOverridden) {
+                local profileNames := []
+                if (globalProgramData.Has("profiles")) {
+                    for name, _ in globalProgramData["profiles"] {
+                        profileNames.Push(name)
+                    }
+                }
+                if (profileNames.Length > 1) {
+                    local activeProfileName := ActiveProfiles["Global"]
+                    local currentIndex := -1
+                    for i, name in profileNames {
+                        if (name == activeProfileName) {
+                            currentIndex := i
+                            break
+                        }
+                    }
+                    local nextIndex := Mod(currentIndex, profileNames.Length) + 1
+                    ActiveProfiles["Global"] := profileNames[nextIndex]
+                    ShowProfileToast("Global -> " . profileNames[nextIndex])
+                
+                    return
+                }
+            }
+        }
+    }
+
+    if (currentContextName != "Global") {
+        if (HandleHotkey(currentContextName, keyString, IsDown, AnyCtrl, AnyAlt, Shift)) {
             return
         }
     }
-
-    ; --- 2. Check for App-Specific Macro ---
-    if (currentContextName != "Global") {
-        if (HandleHotkey(currentContextName, keyString, IsDown, AnyCtrl, AnyAlt, Shift)) {
-            return ; App-specific hotkey was found and handled.
-        }
-
-        ; --- Prevent Fallback Logic ---
-        if (currentProgramData.Has("profiles")) {
-            for profName, profData in currentProgramData["profiles"] {
-                for layerName, layerMap in profData {
-                    if (layerMap.Has(keyString)) {
-                        return
-                    }
-                }
-            }
-        }
-    }
     
-    ; --- 3. Fallback to Global Macro ---
-    HandleHotkey("Global", keyString, IsDown, AnyCtrl, AnyAlt, Shift)
+    if (HandleHotkey("Global", keyString, IsDown, AnyCtrl, AnyAlt, Shift)) {
+        return
+    }
+
+    if (g_CurrentCatchList.Has(VKeyCode)) {
+        local modifiers := ""
+        if (Shift) {
+            modifiers .= "+"
+        }
+        if (AnyCtrl) {
+            modifiers .= "^"
+        }
+        if (AnyAlt) {
+            modifiers .= "!"
+        }
+        local state := IsDown ? " Down" : " Up"
+        local sendString := "{Blind}" . modifiers . "{" . StrLower(keyString) . state . "}"
+        Send(sendString)
+    }
+}
+
+IsHotkeyDefined(programName, keyString, AnyCtrl, AnyAlt, Shift) {
+    local programData := AllData[programName]
+    local activeProfileName := ActiveProfiles[programName]
+    if (!programData.Has("profiles") || !programData["profiles"].Has(activeProfileName)) {
+        return false
+    }
+    local profile := programData["profiles"][activeProfileName]
+
+    local layerName := ""
+    if (Shift && !AnyCtrl && !AnyAlt) {
+        layerName := "shift_hotkeys"
+    } else if (AnyCtrl && !Shift && !AnyAlt) {
+        layerName := "ctrl_hotkeys"
+    } else if (AnyAlt && !Shift && !AnyCtrl) {
+        layerName := "alt_hotkeys"
+    } else if (!AnyCtrl && !AnyAlt && !Shift) {
+        layerName := "hotkeys"
+    } else {
+        return false
+    }
+
+    if (profile.Has(layerName) && profile[layerName].Has(keyString)) {
+        return true
+    }
+    return false
 }
 
 HandleHotkey(programName, keyString, IsDown, AnyCtrl, AnyAlt, Shift) {
@@ -1121,7 +1911,7 @@ HandleHotkey(programName, keyString, IsDown, AnyCtrl, AnyAlt, Shift) {
     } else if (!AnyCtrl && !AnyAlt && !Shift) {
         layerName := "hotkeys"
     } else {
-        return false ; Combo-modifiers not supported by this logic
+        return false
     }
 
     if (profile.Has(layerName) && profile[layerName].Has(keyString)) {
@@ -1134,17 +1924,16 @@ HandleHotkey(programName, keyString, IsDown, AnyCtrl, AnyAlt, Shift) {
             funcName := scriptData["up"]
         }
 
-        if (funcName && Type(%funcName%) = "Func") { ; <-- FIXED: Use && and check funcName is not empty
+        if (funcName && Type(%funcName%) = "Func") {
             try {
-                ; Execute the dynamically-retrieved function by its name.
                 %funcName%()
             } catch as e {
                 MsgBox("Hotkey execution error: " . e.Message, "Error in " . funcName, 16)
             }
         }
-        return true ; Hotkey was found and handled.
+        return true
     }
-    return false ; No hotkey found in this layer.
+    return false
 }
 `;
 
@@ -1177,8 +1966,9 @@ ExitFunc(*) {
         DllCall("ws2_32\\WSACleanup")
     }
     try {
-        if ProcessExist(MKB_ProcessName)
+        if ProcessExist(MKB_ProcessName) {
             ProcessClose(MKB_ProcessName)
+        }
     }
 }
 
@@ -1197,15 +1987,26 @@ try {
 }
 
 MainContextLoop()
-SetTimer(MainContextLoop, 500)
+SetTimer(MainContextLoop, 300)
 `;
     
     return script;
 }
 
-// REPLACE your entire runOrReloadScript function with this one:
+const reloadCommand = "powershell -Command \"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^+%({F16})')\"";
 
-async function runOrReloadScript(isReload = false) {
+
+function isProcessRunning(processName) {
+  return new Promise((resolve, reject) => {
+    exec("tasklist", (err, stdout) => {
+      if (err) return reject(err);
+      resolve(stdout.toLowerCase().includes(processName.toLowerCase()));
+    });
+  });
+}
+
+async function runOrReloadScript(isDriver = false) {
+   const isReload = false;
   const statusMsg = document.getElementById("status-message");
   const saveBtn = document.getElementById("save-btn");
 
@@ -1220,44 +2021,50 @@ async function runOrReloadScript(isReload = false) {
   await document.getElementById("save-btn").dispatchEvent(new Event("click"));
   await new Promise((resolve) => setTimeout(resolve, 100));
 
-  if (isReload) {
-    statusMsg.textContent = "Reloading: Stopping old script...";
-    const exeName = path.basename(AHK_EXE_PATH);
-    const killCommand = `taskkill /IM "${exeName}" /F`;
-    await new Promise((resolve) => exec(killCommand, () => resolve()));
-    await new Promise((resolve) => setTimeout(resolve, 200)); // Give it a moment to fully close
-  }
+  
 
-  statusMsg.textContent = "Starting script...";
+    const ahkRunning = await isProcessRunning("AutoHotKey64.exe");
+    if(!ahkRunning || !isDriver){
+        try {
 
-  try {
-    // --- THIS IS THE FIX ---
-    // We use spawn to create a detached process.
-    const child = spawn(AHK_EXE_PATH, [AHK_SCRIPT_PATH], {
-      detached: true,
-      stdio: "ignore", // Don't link the input/output to our app
-      cwd: DEPS_DIR, // Set the correct working directory
-    });
+             statusMsg.textContent = "Starting script..."
+            // --- THIS IS THE FIX ---
+            // We use spawn to create a detached process.
+        
+            const child = spawn(AHK_EXE_PATH, [isDriver ? AHK_SERVER_SCRIPT_PATH : AHK_SCRIPT_PATH], {
+                detached: true,
+                stdio: "ignore", // Don't link the input/output to our app
+                cwd: DEPS_DIR, // Set the correct working directory
+            });
 
-    // This tells our app not to wait for the script to finish.
-    child.unref();
+            // This tells our app not to wait for the script to finish.
+            child.unref();
 
-    // Since spawn doesn't wait, we can confirm success immediately.
-    statusMsg.textContent = `Script ${isReload ? "reloaded" : "started"} successfully!`;
-    statusMsg.style.color = "green";
-  } catch (error) {
-    statusMsg.textContent = `Error: Could not start script. Is AHK v2 installed at the correct path?`;
-    statusMsg.style.color = "red";
-    console.error(`Spawn Error: ${error.message}`);
-  }
+            // Since spawn doesn't wait, we can confirm success immediately.
+            statusMsg.textContent = `Script started succesfully.`;
+            statusMsg.style.color = "green";
+        } catch (error) {
+            statusMsg.textContent = `Error: Could not start script. Is AHK v2 installed at the correct path?`;
+            statusMsg.style.color = "red";
+            console.error(`Spawn Error: ${error.message}`);
+        }
+    }else{
+        if (isDriver) {  
+            statusMsg.textContent = "Reloading old script...";
+            console.log(statusMsg.textContent);
+            //const exeName = path.basename(AHK_EXE_PATH);
+
+            await new Promise((resolve) => exec(reloadCommand, () => resolve()));
+            await new Promise((resolve) => setTimeout(resolve, 200)); // Give it a moment to fully close
+             statusMsg.textContent = "Script reloaded succesfully."
+        }
+  
+       
+    }
   isEnabled = true;
 }
 
-// In script.js, REPLACE your entire setupEventListeners function with this new one:
 
-// REPLACE your entire setupEventListeners function with this one:
-
-// REPLACE this entire function in script.js
 function setupEventListeners() {
     const profileEditorContainer = document.getElementById("profile-editor-container");
     
@@ -1266,6 +2073,15 @@ function setupEventListeners() {
     const switchButton = document.getElementById('keyboard-view-switch');
     const qwertyView = document.getElementById('qwerty-keyboard');
     const numpadView = document.getElementById('numpad-keyboard');
+    //const reorderUpBtns = document.querySelectorAll('.reorder-btn');
+    
+    (function reorderUp(){
+        const programListNode = document.getElementById("program-list");
+        programListNode.addEventListener("click", (e) => {
+           
+        });
+    })();
+    
 
     if (switchButton) { // Good practice to check if the element exists
         switchButton.addEventListener('click', () => {
@@ -1282,8 +2098,10 @@ function setupEventListeners() {
         });
     }
     
+
     
     const mappingProfileSelect = document.getElementById("mapping-profile-select");
+
     profileEditorContainer.addEventListener("input", (e) => {
         if (e.target.id !== "script-editor-down" && e.target.id !== "script-editor-up") {
             const currentProgram = programProfiles[selectedProgramName];
@@ -1299,45 +2117,68 @@ function setupEventListeners() {
                     runAllValidations();
                     updateKeyboardVisuals();
                     break;
+                case "path-input":
+                    currentProgram.path = e.target.value;
+                    break;
             }
             return;
         }
 
-        if (selectedKeyName) {
-            const currentProgram = programProfiles[selectedProgramName];
-            const currentProfileName = document.getElementById("mapping-profile-select").value;
-            const currentProfile = currentProgram.profiles[currentProfileName];
-
-            let hotkeyMapName;
-            switch (activeModifier) {
-                case 'LShift':   hotkeyMapName = 'shift_hotkeys'; break;
-                case 'LControl': hotkeyMapName = 'ctrl_hotkeys';  break;
-                case 'LAlt':     hotkeyMapName = 'alt_hotkeys';   break;
-                default:         hotkeyMapName = 'hotkeys';
-            }
-
-            if (!currentProfile[hotkeyMapName]) {
-                currentProfile[hotkeyMapName] = {};
-            }
-            const hotkeys = currentProfile[hotkeyMapName];
-
-            let hotkeyData = hotkeys[selectedKeyName];
-            if (typeof hotkeyData !== "object" || hotkeyData === null) {
-                hotkeyData = { down: hotkeyData || "", up: "" };
-            }
-            if (e.target.id === "script-editor-down") {
-                hotkeyData.down = e.target.value;
-            } else if (e.target.id === "script-editor-up") {
-                hotkeyData.up = e.target.value;
-            }
-            if ((!hotkeyData.down || hotkeyData.down.trim() === "") && (!hotkeyData.up || hotkeyData.up.trim() === "")) {
-                delete hotkeys[selectedKeyName];
-            } else {
-                hotkeys[selectedKeyName] = hotkeyData;
-            }
-            updateKeyboardVisuals();
-        }
     });
+
+    // --- The single, reusable function that does all the work ---
+    function syncModelWithEditors() {
+        // 1. Guard clauses: a cleaner way to handle initial checks
+        if (!selectedKeyName) return;
+
+        const currentProgram = programProfiles[selectedProgramName];
+        if (!currentProgram) return;
+
+        // 2. The same setup logic as before, but now in one place
+        const currentProfileName = document.getElementById("mapping-profile-select").value;
+        const currentProfile = currentProgram.profiles[currentProfileName];
+
+
+        let hotkeyMapName;
+        switch (activeModifier) {
+            case 'LShift':   hotkeyMapName = 'shift_hotkeys'; break;
+            case 'LControl': hotkeyMapName = 'ctrl_hotkeys';  break;
+            case 'LAlt':     hotkeyMapName = 'alt_hotkeys';   break;
+            default:         hotkeyMapName = 'hotkeys';
+        }
+
+        if (!currentProfile[hotkeyMapName]) {
+            currentProfile[hotkeyMapName] = {};
+        }
+        const hotkeys = currentProfile[hotkeyMapName];
+
+        // 3. Get the values from BOTH editors
+        const downScript = editorDown.getValue();
+        const upScript = editorUp.getValue();
+
+        // 4. Decide whether to update the existing hotkey or delete it
+        const isHotkeyEmpty = (!downScript || downScript.trim() === "") && (!upScript || upScript.trim() === "");
+
+        if (isHotkeyEmpty) {
+            // If both scripts are empty, remove the hotkey entry entirely
+            delete hotkeys[selectedKeyName];
+        } else {
+            // Otherwise, update or create the hotkey entry
+            hotkeys[selectedKeyName] = {
+                down: downScript,
+                up: upScript
+            };
+        }
+
+        // 5. Finally, update the UI
+        updateKeyboardVisuals();
+    }
+
+
+    // --- Attach the SAME function to BOTH editors' "change" event ---
+    
+    editorDown.on("change", syncModelWithEditors);
+    editorUp.on("change", syncModelWithEditors);
 
     document.getElementById("add-program-btn").addEventListener("click", async () => {
         const filePath = await ipcRenderer.invoke("show-open-dialog", {
@@ -1371,7 +2212,10 @@ function setupEventListeners() {
         const programItem = e.target.closest(".program-item");
         if (!programItem) return;
         const programNameToHandle = programItem.dataset.programName;
-        if (e.target.classList.contains("delete-btn")) {
+        if (e.target.closest(".delete-btn") 
+        
+        ) {
+            
             e.stopPropagation();
             (async () => {
                 const confirmed = await ipcRenderer.invoke("show-confirm-dialog", {
@@ -1384,12 +2228,57 @@ function setupEventListeners() {
                     renderUI();
                 }
             })();
-        } else {
+        } 
+        else if (e.target.closest(".reorder-btn")
+        ) {
+                e.stopPropagation();
+               
+                const programItem = e.target.closest(".program-item");
+                if (!programItem) return;
+
+                const prevSibling = programItem.previousElementSibling;
+
+                if(!prevSibling) return;
+
+                const prevSiblingName = prevSibling.getAttribute("data-program-name");
+                
+                if (prevSiblingName !== "Global") {
+                   
+                    const programItemName = programItem.getAttribute("data-program-name");
+        
+                    const newProgramProfiles = {};
+                    for(const programName in programProfiles) {
+                        if(programName === prevSiblingName) newProgramProfiles[programItemName] = programProfiles[programItemName];         
+                        else if(programName === programItemName) newProgramProfiles[prevSiblingName] = programProfiles[prevSiblingName]          
+                        else newProgramProfiles[programName] = programProfiles[programName];
+                    }
+                    
+                    programProfiles = newProgramProfiles;
+                    const moveHeight = prevSibling.offsetHeight + 5;
+
+                    document.documentElement.style.setProperty('--moveValue', `${moveHeight}px`);
+                   
+                    prevSibling.classList.add("moving-down");
+                    programItem.classList.add("moving-up");
+                    setTimeout(() =>{
+                     
+                       prevSibling.classList.remove("moving-down");
+                       programItem.classList.remove("moving-up");
+                       renderUI();
+                    }, 210);
+                      
+                  
+
+                  
+                }
+        }
+        else {
             if (selectedProgramName !== programNameToHandle) {
                 selectedProgramName = programNameToHandle;
                 renderUI();
             }
         }
+        
     });
 
     document.getElementById("add-process-btn").addEventListener("click", showProcessList);
@@ -1443,9 +2332,42 @@ function setupEventListeners() {
         }
     });
 
-    document.getElementById("run-btn").addEventListener("click", () => runOrReloadScript(false));
-    //document.getElementById("reload-btn").addEventListener("click", () => runOrReloadScript(true));
+    document.getElementById("run-btn").addEventListener("click", () => runOrReloadScript());
+    document.getElementById("run-driver-btn").addEventListener("click", () => runOrReloadScript(true));
     document.getElementById("stop-all-btn").addEventListener("click", stopAllProcesses);
+    document.getElementById("config-folder-btn").addEventListener("click", async (e) => {
+        await exec(`explorer.exe ${USER_CONFIG_DIR}`);
+    });
+    document.getElementById("config-file-btn").addEventListener("click", async (e) =>{
+        await exec(`code ${AHK_CONFIG_SCRIPT_PATH}`);
+        const child = spawn("code", [AHK_CONFIG_SCRIPT_PATH], {
+            detached: true,
+            stdio: "ignore", // Don't link the input/output to our app
+            cwd: DEPS_DIR, // Set the correct working directory
+            });
+
+        child.unref()
+
+    });
+    document.getElementById("universal-macros-btn").addEventListener("click", async (e) =>{
+        await exec(`code ${UNIVERSAL_MACROS_PATH}`);
+    });
+    document.getElementById("kb-log-btn").addEventListener("click", async (e) =>{
+       
+        const mmkb_dir = path.join(DEPS_DIR,"MacroMyKB")
+        const logfile = path.join(mmkb_dir, "log-hidden.bat");
+        
+        const child = await spawn("cmd.exe", ["/c",logfile], {
+            detached : true,
+            cwd : mmkb_dir,
+            stdio : 'ignore'
+        });
+
+        child.unref();
+
+      
+     
+    });
 
     const programListDiv = document.getElementById("program-list");
     programListDiv.addEventListener("dblclick", (e) => {
@@ -1482,7 +2404,7 @@ function setupEventListeners() {
         }, { once: true });
     });
 
-    profileEditorContainer.addEventListener("click", (e) => {
+    profileEditorContainer.addEventListener("click", async (e) => {
         const target = e.target;
         const currentProgram = programProfiles[selectedProgramName];
         if (!currentProgram) return;
@@ -1501,56 +2423,78 @@ function setupEventListeners() {
             }
             renderProfileDetails();
             updateKeyboardVisuals();
-            const editorDown = document.getElementById("script-editor-down");
-            if (!editorDown.disabled) editorDown.focus();
+            if (!editorDown.getOption("readOnly")) {
+             editorDown.focus();
+}
             return;
         }
         switch (target.id) {
-            case "add-profile-btn":
-                const newProfileName = prompt("Enter new profile name:", "");
-                if (newProfileName) {
-                    if (!currentProgram.profiles[newProfileName]) {
-                        currentProgram.profiles[newProfileName] = { hotkeys: {} };
-                        currentProgram.activeProfile = newProfileName;
-                        selectedKeyName = null;
-                        renderUI();
-                    } else {
-                        alert(`Profile "${newProfileName}" already exists.`);
-                    }
+          case "add-profile-btn":
+            const newProfileName = (await Swal.fire({
+              title: "Enter new profile name",
+              input: "text",
+              inputLabel: "Profile Name",
+              inputValue: "", // Optional default value
+              showCancelButton: true,
+              // Simple validation: don't allow empty names
+              inputValidator: (value) => {
+                if (!value) {
+                  return "You need to write something!";
                 }
-                break;
-            case "delete-profile-btn":
-                (async () => {
-                    const profileSelect = document.getElementById("mapping-profile-select");
-                    const profileToDelete = profileSelect.value;
-                    if (profileToDelete !== "Default") {
-                        const confirmed = await ipcRenderer.invoke("show-confirm-dialog", {
-                            title: "Delete Profile", message: `Are you sure you want to delete the profile "${profileToDelete}"?`, detail: "This action cannot be undone.",
-                        });
-                        if (confirmed) {
-                            delete currentProgram.profiles[profileToDelete];
-                            currentProgram.activeProfile = "Default";
-                            selectedKeyName = null;
-                            renderUI();
-                        }
-                    }
-                })();
-                break;
-            case "change-path-btn":
-                (async () => {
-                    const filePath = await ipcRenderer.invoke("show-open-dialog", {
-                        title: "Change Program Path", buttonLabel: "Select New Path",
-                    });
-                    if (filePath) {
-                        if (currentProgram) {
-                            currentProgram.path = filePath;
-                            currentProgram.exeName = path.basename(filePath);
-                            renderProfileDetails();
-                            runAllValidations();
-                        }
-                    }
-                })();
-                break;
+              },
+            })).value;
+
+            if (newProfileName) {
+              if (!currentProgram.profiles[newProfileName]) {
+                currentProgram.profiles[newProfileName] = { hotkeys: {} };
+                currentProgram.activeProfile = newProfileName;
+                selectedKeyName = null;
+                renderUI();
+              } else {
+                 Swal.fire(`Profile "${newProfileName}" already exists.`);
+              }
+            }
+            break;
+          case "delete-profile-btn":
+            (async () => {
+              const profileSelect = document.getElementById(
+                "mapping-profile-select"
+              );
+              const profileToDelete = profileSelect.value;
+              if (profileToDelete !== "Default") {
+                const confirmed = await ipcRenderer.invoke(
+                  "show-confirm-dialog",
+                  {
+                    title: "Delete Profile",
+                    message: `Are you sure you want to delete the profile "${profileToDelete}"?`,
+                    detail: "This action cannot be undone.",
+                  }
+                );
+                if (confirmed) {
+                  delete currentProgram.profiles[profileToDelete];
+                  currentProgram.activeProfile = "Default";
+                  selectedKeyName = null;
+                  renderUI();
+                }
+              }
+            })();
+            break;
+          case "change-path-btn":
+            (async () => {
+              const filePath = await ipcRenderer.invoke("show-open-dialog", {
+                title: "Change Program Path",
+                buttonLabel: "Select New Path",
+              });
+              if (filePath) {
+                if (currentProgram) {
+                  currentProgram.path = filePath;
+                  currentProgram.exeName = path.basename(filePath);
+                  renderProfileDetails();
+                  runAllValidations();
+                }
+              }
+            })();
+            break;
         }
     });
 
@@ -1576,48 +2520,34 @@ function setupEventListeners() {
                 break;
         }
     });
-
-    profileEditorContainer.addEventListener("keydown", (e) => {
-        if (e.target.id === "script-editor-down" || e.target.id === "script-editor-up") {
-            const editor = e.target;
-            if (e.key === "Tab") {
-                e.preventDefault();
-                const start = editor.selectionStart;
-                const indentation = "    ";
-                editor.value = editor.value.substring(0, start) + indentation + editor.value.substring(start);
-                editor.selectionStart = editor.selectionEnd = start + indentation.length;
-            }
-            if (e.key === "Enter") {
-                e.preventDefault();
-                const start = editor.selectionStart;
-                const textToCursor = editor.value.substring(0, start);
-                const currentLine = textToCursor.substring(textToCursor.lastIndexOf("\n") + 1);
-                const indentation = currentLine.match(/^\s*/)?.[0] || "";
-                const newValue = "\n" + indentation;
-                editor.value = editor.value.substring(0, start) + newValue + editor.value.substring(start);
-                editor.selectionStart = editor.selectionEnd = start + newValue.length;
-            }
-        }
-    });
     
-    document.getElementById("save-btn").addEventListener("click", async () => {
+     const saveSettings = async () => {
+        
+        await loadUniversalMacros();
         const statusMsg = document.getElementById("status-message");
         statusMsg.textContent = "Saving...";
         statusMsg.style.color = "black";
         try {
-            await fs.mkdir(USER_DIR, { recursive: true });
+            await fs.mkdir(USER_CONFIG_DIR, { recursive: true });
             await fs.writeFile(SETTINGS_JSON_PATH, JSON.stringify(programProfiles, null, 2), "utf8");
             const generation = generateAhkScript();
-            console.log("Generated AHK script:", generation);
+            const generationDriver = generateAhkScriptDriver();
+          
             await fs.writeFile(AHK_SCRIPT_PATH, generation, "utf8");
-            console.log(programProfiles);
+           
+            await fs.writeFile(AHK_SERVER_SCRIPT_PATH, serverAHKScript, "utf8");
+            
+            await fs.writeFile(AHK_CONFIG_SCRIPT_PATH, generationDriver, "utf8");
+            
+
             statusMsg.textContent = "Settings saved and AHK script generated successfully!";
             statusMsg.style.color = "green";
         } catch (err) {
             statusMsg.textContent = `Error: ${err.message}`;
             statusMsg.style.color = "red";
         }
-    });
+    }
+    document.getElementById("save-btn").addEventListener("click", () => saveSettings());
 }
 // ================================================================= //
 //                      APPLICATION STARTUP                          //
@@ -1633,7 +2563,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     if (action === "toggle-run-stop") {
       if (!isEnabled) {
-        document.getElementById("run-btn").click();
+        document.getElementById("run-driver-btn").click();
         // The old toast opened a new window, which is more complex in Electron.
         // For now, let's just log it or update the status bar.
         ipcRenderer.send("show-toast", "Enabled", "lightgreen", 500);
@@ -1641,6 +2571,10 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("stop-all-btn").click();
         ipcRenderer.send("show-toast", "Disabled", "lightcoral", 500);
       }
+    }
+    if (action === "toggle-reload") {
+         ipcRenderer.send("show-toast", "Reloading...", "lightblue", 500);
+        document.getElementById("run-driver-btn").click();  
     }
   });
 });
@@ -1650,6 +2584,150 @@ document.addEventListener("DOMContentLoaded", () => {
 ipcRenderer.on("clean-close", async () => {
   await stopAllProcesses();
 });
+
+
+// --- In your script.js, replace the old list with this one ---
+
+const ahkKeywords = [
+    // --- Statement Keywords ---
+    'class', 'static', 'super', 'try', 'catch', 'finally', 'throw', 'return', 'Break', 'Continue', 'Critical', 
+    'Exit', 'ExitApp', 'Gosub', 'Goto', 'New', 'OnExit', 'Pause', 'SetBatchLines', 'SetTimer', 'Suspend', 'Thread', 'Until', 'as',
+
+    // --- Control Flow Keywords ---
+    'If', 'Else', 'For', 'In', 'While', 'Loop', 'Switch',
+
+    // --- Directives ---
+    '#Requires', '#Include', '#Warn', '#HotIf', '#HotIfTimeout', '#NoTrayIcon', '#UseHook',
+
+    // --- Literals & Special ---
+    'true', 'false', 'this',
+
+    // --- Common Built-in Functions ---
+    'Abs', 'ACos', 'ASin', 'ATan', 'CallbackCreate', 'CallbackFree', 'Ceil', 'Chr', 'Click', 'ClipWait',
+    'ComCall', 'ComObjActive', 'ComObjGet', 'ComObjValue', 'ControlClick', 'ControlSend', 'ControlGetText',
+    'CoordMode', 'Cos', 'DateAdd', 'DateDiff', 'DirCopy', 'DirCreate', 'DirDelete', 'DirExist', 'DirMove',
+    'DllCall', 'Download', 'DriveGetList', 'EnvGet', 'EnvSet', 'Exit', 'ExitApp', 'Exp', 'FileAppend',
+    'FileCopy', 'FileDelete', 'FileEncoding', 'FileExist', 'FileGetAttrib', 'FileGetSize', 'FileGetTime',
+    'FileGetVersion', 'FileMove', 'FileOpen', 'FileRead', 'FileRecycle', 'FileSelect', 'FileSetAttrib',
+    'FileSetTime', 'Floor', 'Format', 'FormatTime', 'GetKeyName', 'GetKeyState', 'GroupActivate', 'GroupAdd',
+    'GroupClose', 'GuiCtrlFromHwnd', 'GuiFromHwnd', 'HasBase', 'HasMethod', 'HasProp', 'Hotkey', 'Hotstring',
+    'ImageSearch', 'IniDelete', 'IniRead', 'IniWrite', 'InputBox', 'InStr', 'IsAlnum', 'IsAlpha', 'IsDigit',
+    'IsFloat', 'IsInteger', 'IsLabel', 'IsLower', 'IsNumber', 'IsObject', 'IsSetRef', 'IsSpace', 'IsTime',
+    'IsUpper', 'IsXDigit', 'KeyHistory', 'KeyWait', 'ListHotkeys', 'ListLines', 'ListVars', 'Ln', 'Log', 'LTrim',
+    'Max', 'MenuSelect', 'Min', 'Mod', 'MonitorGet', 'MonitorGetCount', 'MouseClick', 'MouseClickDrag', 'MouseGetPos',
+    'MouseMove', 'MsgBox', 'NumGet', 'NumPut', 'ObjAddRef', 'ObjBindMethod', 'ObjRelease', 'OnClipboardChange',
+    'OnError', 'OnExit', 'OnMessage', 'Ord', 'OutputDebug', 'Pause', 'Persistent', 'PixelGetColor', 'PixelSearch',
+    'PostMessage', 'ProcessClose', 'ProcessExist', 'ProcessSetPriority', 'ProcessWait', 'ProcessWaitClose',
+    'Random', 'RegDelete', 'RegExMatch', 'RegExReplace', 'RegRead', 'RegWrite', 'Reload', 'Round', 'RTrim',
+    'Run', 'RunAs', 'RunWait', 'Send', 'SendEvent', 'SendInput', 'SendMessage', 'SendMode', 'SendText',
+    'SetCapslockState', 'SetKeyDelay', 'SetTimer', 'SetTitleMatchMode', 'SetWinDelay', 'SetWorkingDir', 'Shutdown',
+    'Sin', 'Sleep', 'Sort', 'SoundBeep', 'SoundPlay', 'SplitPath', 'Sqrt', 'StatusBarGetText', 'StatusBarWait',
+    'StrCompare', 'StrGet', 'StrLen', 'StrLower', 'StrReplace', 'StrSplit', 'StrUpper', 'SubStr', 'Suspend',
+    'SysGet', 'Tan', 'Thread', 'ToolTip', 'TraySetIcon', 'TrayTip', 'Trim', 'Type', 'VerCompare', 'WinActivate',
+    'WinActive', 'WinClose', 'WinExist', 'WinGetClass', 'WinGetControls', 'WinGetCount', 'WinGetID', 'WinGetList',
+    'WinGetPos', 'WinGetText', 'WinGetTitle', 'WinHide', 'WinKill', 'WinMaximize', 'WinMinimize', 'WinMove',
+    'WinRestore', 'WinSet', 'WinSetTitle', 'WinShow', 'WinWait', 'WinWaitActive', 'WinWaitClose',
+
+    // --- Built-in Classes ---
+    'Array', 'Buffer', 'Class', 'ClipboardAll', 'Enumerator', 'Error', 'File', 'Func', 'Gui', 'InputHook',
+    'Integer', 'Map', 'Menu', 'MenuBar', 'Object', 'RegExMatchInfo', 'String', 'VarRef',
+
+    // --- Built-in Variables ---
+    'A_AhkPath', 'A_AhkVersion', 'A_Args', 'A_Clipboard', 'A_ComputerName', 'A_ControlDelay', 'A_CoordModeCaret',
+    'A_CoordModeMenu', 'A_CoordModeMouse', 'A_CoordModePixel', 'A_CoordModeToolTip', 'A_Cursor', 'A_DD', 'A_DDD',
+    'A_DDDD', 'A_DefaultMouseSpeed', 'A_DetectHiddenText', 'A_DetectHiddenWindows', 'A_EndChar', 'A_EventInfo',
+    'A_FileEncoding', 'A_Hour', 'A_IconFile', 'A_IconHidden', 'A_IconNumber', 'A_IconTip', 'A_Index',
+    'A_Is64bitOS', 'A_IsAdmin', 'A_IsCompiled', 'A_IsCritical', 'A_IsPaused', 'A_IsSuspended', 'A_KeyDelay',
+    'A_KeyDuration', 'A_Language', 'A_LastError', 'A_LineFile', 'A_LineNumber', 'A_ListLines', 'A_LoopField',
+    'A_MDay', 'A_Min', 'A_MM', 'A_MMM', 'A_MMMM', 'A_Mon', 'A_MouseDelay', 'A_MSec', 'A_MyDocuments', 'A_Now',
+    'A_NowUTC', 'A_OSVersion', 'A_PriorHotkey', 'A_PriorKey', 'A_ProgramFiles', 'A_PtrSize', 'A_RegView',
+    'A_ScreenDPI', 'A_ScreenHeight', 'A_ScreenWidth', 'A_ScriptDir', 'A_ScriptFullPath', 'A_ScriptHwnd',
+    'A_ScriptName', 'A_Sec', 'A_SendLevel', 'A_SendMode', 'A_Space', 'A_Tab', 'A_Temp', 'A_ThisFunc',
+    'A_ThisHotkey', 'A_TickCount', 'A_TimeIdle', 'A_TimeSincePriorHotkey', 'A_TimeSinceThisHotkey',
+    'A_TitleMatchMode', 'A_TitleMatchModeSpeed', 'A_TrayMenu', 'A_UserName', 'A_WDay', 'A_WinDelay',
+    'A_WorkingDir', 'A_YDay', 'A_Year', 'A_YWeek', 'A_YYYY'
+];
+
+const addSpaceAfterFunctions = new Set([
+    // User's examples:
+    'Send', 'Sleep', 'MsgBox',
+
+    // Other common command-like functions:
+    'Run', 'ToolTip', 'TrayTip', 'Click', 'MouseMove', 'WinActivate', 'WinClose', 'WinHide', 'WinShow', 'WinKill',
+    'WinWait', 'RegRead', 'RegWrite', 'FileAppend', 'FileCopy', 'FileDelete', 'ControlSend', 'ControlClick',
+
+    // Common keywords that are always followed by a space:
+    'If', 'Else', 'For', 'While', 'Loop', 'return', 'Until'
+]);
+
+
+// --- 2. THE FINAL HINTER FUNCTION (with the correct reversed priority) ---
+const ahkHinter = (editor) => {
+    const cursor = editor.getCursor();
+    const token = editor.getTokenAt(cursor);
+
+    // Context check (correct)
+    if (token.type && (token.type.includes('string') || token.type.includes('comment'))) {
+        return null;
+    }
+
+    // Find the word the user is currently typing (correct)
+    const currentLine = editor.getLine(cursor.line);
+    let wordStart = cursor.ch;
+    while (wordStart > 0 && /\w/.test(currentLine.charAt(wordStart - 1))) {
+        wordStart--;
+    }
+    const currentWord = currentLine.slice(wordStart, cursor.ch);
+
+    // Intelligently find suggestions from the code (correct)
+    const wordsInCode = new Set();
+    for (let i = 0; i < editor.lineCount(); i++) {
+        editor.getLineTokens(i).forEach(t => {
+            if (t.type && (t.type.includes('variable') || t.type.includes('def'))) {
+                const matches = t.string.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g);
+                if (matches) matches.forEach(match => wordsInCode.add(match));
+            }
+        });
+    }
+
+    const allPossibleWords = new Set([...ahkKeywords, ...Array.from(wordsInCode)]);
+
+    // Filter the list (correct)
+    if (currentWord.length === 0) { return { list: [] }; }
+    const suggestions = [];
+    allPossibleWords.forEach(word => {
+        if (word.toLowerCase().startsWith(currentWord.toLowerCase())) {
+            suggestions.push(word);
+        }
+    });
+    
+    // "Helpfulness" Check (correct)
+    if (suggestions.length === 1 && suggestions[0].toLowerCase() === currentWord.toLowerCase()) {
+        return null;
+    }
+
+    // --- 3. THE KEY CHANGE: Convert strings to smart objects with YOUR requested logic ---
+    const smartSuggestions = suggestions.map(word => {
+        // Check our new "add-a-space" exception list.
+        if (addSpaceAfterFunctions.has(word)) {
+            return { text: word + " " }; // It's an exception, so ADD a space.
+        } else {
+            return { text: word }; // It's not an exception, so NO space (the default).
+        }
+    });
+
+    // Return the final list of smart suggestion objects
+    return {
+        list: smartSuggestions,
+        from: CodeMirror.Pos(cursor.line, wordStart),
+        to: CodeMirror.Pos(cursor.line, cursor.ch)
+    };
+};
+
+
+CodeMirror.registerHelper('hint', 'autohotkey', ahkHinter);
+
+const bro = "test";
 
 
 
@@ -1665,3 +2743,4 @@ win.on('close', async () => {
 
 });
 */
+

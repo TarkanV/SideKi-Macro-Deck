@@ -1,10 +1,14 @@
-const { app, screen, BrowserWindow, globalShortcut, ipcMain, dialog } = require('electron')
+const { app, screen, BrowserWindow, globalShortcut, ipcMain, dialog,  Tray, Menu } = require('electron')
 const path = require('path');
 const fs = require('fs').promises;
 const { exec, spawn } = require('child_process');
 
+
+let win;
+let tray;
+
 const createWindow = () => {
-    const win = new BrowserWindow({
+    win = new BrowserWindow({
         title: 'SideKi Macro Deck',
         width: 1400, 
         height: 900,
@@ -14,6 +18,7 @@ const createWindow = () => {
         icon: path.join(__dirname, 'keyboard.ico'),
         
         webPreferences: {
+             spellcheck: false,
             nodeIntegration: true, // Quick and dirty way to get 'require' in your renderer
             contextIsolation: false, // Required for nodeIntegration to work easily
         
@@ -21,9 +26,52 @@ const createWindow = () => {
     });
     win.loadFile('index.html');
     //win.webContents.openDevTools({ mode: 'detach', activate : false });
+
+    tray = new Tray(path.join(__dirname, 'keyboard.ico'));
+    tray.setToolTip('SideKi');
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'Show App',
+            click: () => {
+                win.show();
+                win.setSkipTaskbar(false);
+            }
+        },
+        {
+            label: 'Quit',
+            click: () => {
+                app.isQuiting = true;
+                app.quit();
+            }
+        }
+    ]);
+    tray.setContextMenu(contextMenu);
+
+      tray.on('click', () => {
+        win.show();
+        win.setSkipTaskbar(false);
+    });
+
+      // Hide the window instead of minimizing it.
+    win.on('minimize', (event) => {
+        event.preventDefault();
+        win.hide();
+        win.setSkipTaskbar(true);
+    });
+
+    // Allow the window to close normally (e.g., via X button or Alt+F4)
+    win.on('close', (event) => {
+        // No prevention of close event, allowing normal app closure
+    });
+
 };
 
+
+
+
+
 const AHK_EXE_PATH = "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe"; // If it varies per user, add input in the UI to set it
+
 
 app.whenReady().then(() => {
 
@@ -42,12 +90,20 @@ app.whenReady().then(() => {
     
     // Register global shortcuts from your GlobalShortcutManager logic
     
-     globalShortcut.register('PrintScreen', () => {
+    globalShortcut.register('Control+PrintScreen', () => {
         // When the shortcut is pressed, find the main window...
         const win = BrowserWindow.getAllWindows()[0];
         if (win) {
             // ...and send a message to its renderer process (your script.js).
             win.webContents.send('global-shortcut-triggered', 'toggle-run-stop');
+        }
+    });
+
+    globalShortcut.register('PrintScreen', () => {
+        const win = BrowserWindow.getAllWindows()[0];
+        if (win) {
+
+            win.webContents.send('global-shortcut-triggered', 'toggle-reload');
         }
     });
 });
@@ -130,6 +186,7 @@ function showGlobalToast(message, color, duration) {
         focusable: false,      // Prevents the toast from stealing focus from the main app
         skipTaskbar: true,     // Does not appear in the taskbar
         webPreferences: {
+             spellcheck: false,
             nodeIntegration: true,     // Needed for `require` in toast.js
             contextIsolation: false,
         }

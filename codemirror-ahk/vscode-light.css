@@ -1,0 +1,30 @@
+/*
+    CodeMirror Theme: VS Code Light+ (Final Corrected Version)
+*/
+.cm-s-vscode-light.CodeMirror { background: #FFFFFF; color: #000000; border: 1px solid #ccc; }
+.cm-s-vscode-light .CodeMirror-gutters { background: #F7F7F7; border-right: 1px solid #ddd; }
+.cm-s-vscode-light .CodeMirror-linenumber { color: #858585; }
+.cm-s-vscode-light .CodeMirror-cursor { border-left: 1px solid black; }
+.cm-s-vscode-light div.CodeMirror-selected { background: #ADD6FF; }
+.cm-s-vscode-light .CodeMirror-activeline-background { background: #EFEFEF; }
+
+/* Main syntax colors */
+.cm-s-vscode-light .cm-keyword { color: #AF00DB; } /* Violet: class, try, catch, return */
+.cm-s-vscode-light .cm-block-keyword { color: #0000FF; } /* Blue: if, for, while */
+.cm-s-vscode-light .cm-atom { color: #0000FF; } /* Blue: this, true, false, static */
+.cm-s-vscode-light .cm-number { color: #098658; } /* Green */
+.cm-s-vscode-light .cm-def { color: #795E26; } /* Brown: Function & Method names */
+.cm-s-vscode-light .cm-variable { color: #001080; } /* Dark Blue: variables */
+.cm-s-vscode-light .cm-variable-2 { color: #001080; } /* Dark Blue: properties */
+.cm-s-vscode-light .cm-type { color: #267F99; } /* Teal: Class names */
+.cm-s-vscode-light .cm-property { color: #0070C1; } /* Light Blue: Hotkeys like ^j */
+.cm-s-vscode-light .cm-comment { color: #008000; } /* Green */
+.cm-s-vscode-light .cm-string { color: #A31515; } /* Orange/Red: Strings and directive params */
+.cm-s-vscode-light .cm-meta { color: #AF00DB; } /* Violet: #Requires */
+.cm-s-vscode-light .cm-tag { color: #800000; }
+.cm-s-vscode-light .cm-builtin { color: #0000FF; } /* Blue: A_ variables */
+
+/* --- CORRECTED RULES --- */
+.cm-s-vscode-light .cm-operator { color: #0000FF; } /* Blue: =>, :=, ., +, etc. */
+.cm-s-vscode-light .cm-bracket { color: #0000FF; } /* Blue: default (), {}, [] */
+.cm-s-vscode-light .cm-def-bracket { color: #008000; } /* Green for parentheses in definitions */

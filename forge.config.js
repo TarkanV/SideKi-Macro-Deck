@@ -5,7 +5,6 @@ module.exports = {
       asar: true,
       extraResource: [
       './deps',
-      "./Open Config File.lnk",
     ],
     ignore :[
         '/deps',

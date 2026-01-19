@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>CodeMirror: AutoHotkey v2 Mode (Final)</title>
+    <meta charset="utf-8"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <link rel="stylesheet" href="vscode-light.css">
+    <script src="autohotkey.js"></script>
+    <style> body { font-family: sans-serif; } </style>
+</head>
+<body>
+    <h1>CodeMirror: AutoHotkey v2 Mode (Final)</h1>
+    <textarea id="code" name="code">
+#Requires AutoHotkey v2.0
+
+; This is a v2-style script.
+myFunc := (param) => MsgBox("Fat arrow works: " . param)
+
+class MyGui {
+    static Version := "2.1"
+
+    __New() {
+        this.gui := Gui()
+        this.gui.Add("Text",, "Hello, v2!")
+        this.btn := this.gui.Add("Button",, "Click Me")
+        this.btn.OnEvent("Click", this.ButtonClickHandler)
+    }
+
+    Show() => this.gui.Show() ; Fat arrow method
+
+    ButtonClickHandler(*) {
+        try {
+            MsgBox "Button clicked! Version: " . MyGui.Version ; Access static member correctly
+        } catch as e {
+            MsgBox "An error occurred: " . e.Message
+        }
+    }
+}
+
+myApp := MyGui()
+myApp.Show()
+
+; Hotkey example
+^j::
+{
+    myApp.ButtonClickHandler()
+    return
+}
+    </textarea>
+    <script>
+      var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+        lineNumbers: true,
+        mode: "text/x-autohotkey",
+        theme: "vscode-light"
+      });
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 
 SetTitleMatchMode(2)
 
-Find_Element(Name, WinTitle := "A") {
+SFind(Name, WinTitle := "A") { ;Find_Element
     if (WinTitle = "A")
         WinTitle := WinExist("A")
     try {
@@ -15,9 +15,58 @@ Find_Element(Name, WinTitle := "A") {
     }
 }
 
-Find_Click(Name, WinTitle := "A") {
+
+
+SFindWait(Name,  WinTitle := "A", MaxAttempts := 10, IntervalMS := 250) { ;Find_ElementWait
+    Loop MaxAttempts {
+        if element := SFind(Name, WinTitle) {
+            return element
+        }
+        Sleep(IntervalMS)
+    }
+    return false
+}
+
+SFindOR(Names*) {
+    WinTitle := "A"
     try {
-        if element := Find_Element(Name, WinTitle) {
+        ; 1. Get the window element
+        hwnd := WinExist(WinTitle)
+        if !hwnd
+            return false
+        window := UIA.ElementFromHandle(hwnd)
+
+        ; 2. Build the "OR" condition array: [{Name:"Name1"}, {Name:"Name2"}, ...]
+        Conditions := []
+        for Name in Names {
+            Conditions.Push({Name: Name, MatchMode: "RegEx"})
+        }
+
+        ; 3. Use the built-in OR search (throws TargetError if none match)
+        return window.FindElement(Conditions)
+    }
+    catch {
+        return false
+    }
+}
+
+SFindWaitOR(Names*) { ;Find_ElementWait
+    WinTitle := "A"
+    MaxAttempts := 10
+    IntervalMS := 250
+    
+    Loop MaxAttempts {
+        if element := SFindOR(Names) {
+            return element
+        }
+        Sleep(IntervalMS)
+    }
+    return false
+}
+
+SClick(Name, WinTitle := "A") { ;Find_Click
+    try {
+        if element := SFind(Name, WinTitle) {
             element.Click()
             return true
         }
@@ -28,22 +77,12 @@ Find_Click(Name, WinTitle := "A") {
     return false
 }
 
-Find_ElementWait(Name,  WinTitle := "A", MaxAttempts := 10, IntervalMS := 250) {
-    Loop MaxAttempts {
-        if element := Find_Element(Name, WinTitle) {
-            return element
-        }
-        Sleep(IntervalMS)
-    }
-    return false
+SClickWait(elementName, clickType :="left", Interval:="250", WinTitle := "A"){
+    element := SFindWait(elementName, , Interval)
+    SClickRelative(element, clickType)
 }
 
-ClickWait(elementName, clickType :="left", Interval:="250", WinTitle := "A"){
-    element := Find_ElementWait(elementName, , Interval)
-    ClickRelative(element, clickType)
-}
-
-ClickRelative(element, clickType := "left", offsetX := 0, offsetY := 0) {
+SClickRelative(element, clickType := "left", offsetX := 0, offsetY := 0) {
     if not IsObject(element)
         return false
     
@@ -62,7 +101,7 @@ ClickRelative(element, clickType := "left", offsetX := 0, offsetY := 0) {
     }
 }
 
-Find_List(WinTitle := "A") {
+SFindList(WinTitle := "A") { ;FindList
     displayTitle := WinTitle
     if (WinTitle = "A") {
         WinTitle := WinExist("A")

@@ -10,7 +10,7 @@ build.bat
 newAHK.ahk
 newAHK2.ahk 
 testMSG.ahk
-deps/MKB/MKB.rar
+
 
 # Logs
 logs
@@ -53,6 +53,8 @@ build/Release
 
 # Dependency directories
 node_modules/
+deps/MacroMyKB/.pm2/
+deps/MacroMyKB/node/
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)
@@ -154,3 +156,4 @@ vite.config.ts.timestamp-*
 
 
 build.bat
+SideKi-Cloud.rar
