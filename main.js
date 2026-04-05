@@ -25,8 +25,9 @@ const createWindow = () => {
         },
     });
     win.loadFile('index.html');
-    //win.webContents.openDevTools({ mode: 'detach', activate : false });
-
+    if (!app.isPackaged) {
+        win.webContents.openDevTools({ mode: 'detach', activate : false });
+    }
     tray = new Tray(path.join(__dirname, 'keyboard.ico'));
     tray.setToolTip('SideKi');
     const contextMenu = Menu.buildFromTemplate([
@@ -74,7 +75,7 @@ const AHK_EXE_PATH = "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe"; // I
 
 
 app.whenReady().then(() => {
-
+    Menu.setApplicationMenu(null);
     ipcMain.on('get-app-info', (event) => {
         // It replies immediately with an object containing the info the renderer needs.
         event.returnValue = {

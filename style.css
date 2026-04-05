@@ -1,5 +1,5 @@
 /* ======================================= */
-/*          GLOBAL & BASIC SETUP           */
+/*          GLOBAL & BASIC SETUP  CORE        */
 /* ======================================= */
 body {
     font-family: sans-serif;
@@ -185,11 +185,12 @@ button {
 
 }
 
-
-
+/* In style.css */
 
 .program-item {
+    position: relative; /* Needed for positioning the input */
     padding: 8px;
+    min-height : 14px;
     cursor: pointer;
     border-radius: 4px;
     margin-bottom: 5px;
@@ -854,13 +855,6 @@ button {
 
 
 
-
-/* In style.css */
-
-.program-item {
-    position: relative; /* Needed for positioning the input */
-    padding: 8px; /* Give it some space */
-}
 
 
 

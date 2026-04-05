@@ -1,5 +1,3 @@
-//HARD LINK 1 DAY TEST
-
 const runDriver = true;
 
 const { ipcRenderer } = require("electron");
@@ -96,8 +94,6 @@ const VK_MAP = {
     };
 
 
-
-
 const defaultData = {
   Global: {
     displayName: "Global",
@@ -119,93 +115,11 @@ MsgBox("This is the default Global profile.")`,
 };
 
 
-const State = {
-    data: defaultData, 
-    selection: {
-        programName: "Global",
-        keyName: null,
-        modifier: null 
-    },
-    status: {
-        isEnabled: false
-    },
-
-    // 1. Get current program object
-    getCurrentProgram() {
-        return this.data[this.selection.programName];
-    },
-
-    // 2. Get current profile object
-    getCurrentProfile() {
-        const prog = this.getCurrentProgram();
-        if (!prog) return null;
-        if (!prog.profiles) prog.profiles = { Default: { hotkeys: {} } };
-        return prog.profiles[prog.activeProfile || "Default"];
-    },
-
-    // 3. Get the active layer (Map of hotkeys)
-    getCurrentLayer() {
-        const profile = this.getCurrentProfile();
-        if (!profile) return null;
-
-        switch (this.selection.modifier) {
-            case 'LShift': return profile.shift_hotkeys || (profile.shift_hotkeys = {});
-            case 'LControl': return profile.ctrl_hotkeys || (profile.ctrl_hotkeys = {});
-            case 'LAlt': return profile.alt_hotkeys || (profile.alt_hotkeys = {});
-            default: return profile.hotkeys || (profile.hotkeys = {});
-        }
-    },
-    
-
-    // 4. THE ONE YOU CAUGHT: Get data for a key {down, up}
-    getKeyData(keyName) {
-        const layer = this.getCurrentLayer();
-        return (layer && layer[keyName]) ? layer[keyName] : null;
-    },
-
-    // 5. Set data for a key (or delete if scripts are empty)
-    setKeyData(keyName, downScript, upScript) {
-        const layer = this.getCurrentLayer();
-        if (!layer) return;
-
-        if ((!downScript || !downScript.trim()) && (!upScript || !upScript.trim())) {
-            delete layer[keyName];
-        } else {
-            layer[keyName] = { down: downScript || "", up: upScript || "" };
-        }
-    },
-
-    setLayerKeyData(layerName, keyName, downScript, upScript) {
-        const layer = layerName;
-        if (!layer) return;
-
-        if ((!downScript || !downScript.trim()) && (!upScript || !upScript.trim())) {
-            delete layer[keyName];
-        } else {
-            layer[keyName] = { down: downScript || "", up: upScript || "" };
-        }
-    },
-
-    // 6. Helpers for switching selections
-    selectProgram(progName) {
-        if (this.data[progName]) {
-            this.selection.programName = progName;
-            this.selection.keyName = null; 
-        }
-    },
-
-    toggleModifier(modName) {
-        this.selection.modifier = (this.selection.modifier === modName) ? null : modName;
-        this.selection.keyName = null;
-    }
-};
-
-
-//let programProfiles = {};
-//let selectedProgramName = "Global";
-//let selectedKeyName = null;
+let programProfiles = {};
+let selectedProgramName = "Global";
+let selectedKeyName = null;
 let isEnabled = false;
-//let activeModifier = null;
+let activeModifier = null;
 
 let editorDown;
 let editorUp;
@@ -277,10 +191,10 @@ async function initialize() {
 
   try {
     const fileContent = await fs.readFile(SETTINGS_JSON_PATH, "utf8");
-     State.data = JSON.parse(fileContent);
+    programProfiles = JSON.parse(fileContent);
     // --- THIS IS THE "UPGRADE AT LOAD TIME" LOGIC ---
-    for (const progName in State.data) {
-      const program = State.data[progName];
+    for (const progName in programProfiles) {
+      const program = programProfiles[progName];
       if (program.profiles) {
         for (const profName in program.profiles) {
           const profile = program.profiles[profName];
@@ -309,7 +223,7 @@ async function initialize() {
     }
     // --- END OF UPGRADE LOGIC ---
   } catch (err) {
-    State.data = defaultData;
+    programProfiles = defaultData;
   }
   renderUI();
 }
@@ -539,8 +453,8 @@ function renderProgramList() {
     const template = document.getElementById('program-item-template');
     programListDiv.innerHTML = '';
 
-    for (const progName in State.data) {
-        const program = State.data[progName];
+    for (const progName in programProfiles) {
+        const program = programProfiles[progName];
         
         const clone = template.content.cloneNode(true);
         const item = clone.querySelector('.program-item');
@@ -551,7 +465,7 @@ function renderProgramList() {
         const deleteBtn = clone.querySelector('.delete-btn');
 
         item.dataset.programName = progName;
-        if (progName === State.selection.programName) {
+        if (progName === selectedProgramName) {
             item.classList.add('selected');
         }
 
@@ -587,197 +501,11 @@ function renderProgramList() {
         programListDiv.appendChild(clone);
     }
 }
+// In script.js, REPLACE your entire renderProfileDetails function with this new one:
 
+// REPLACE your entire renderProfileDetails function with this one:
 
 // REPLACE this entire function in script.js
-
-
-const keyContainer = document.getElementById("keyboard-views-container");
-
-
-
-
-function dragMoveKeyDataNew(){
-    let dragging = false;
-    let clicked = false;
-    let ghost;
-
-    let draggedNode = null;
-    let draggedNodeName = "";
-    let draggedData  = null;
-    let draggedLayer = null;
-   
-
-    let targetData = null;
-    let draggedKeyName = "";
-
-    function createGhost(e, itemDescription){
-        if(itemDescription !== null){
-            ghost = document.createElement("div");
-            ghost.style.width = "80px";
-            ghost.style.height = "40px";
-            ghost.style.backgroundColor = "lightgray";
-            ghost.style.borderRadius = '12px';
-            ghost.style.padding = '10px 5px';
-            ghost.style.fontSize = '12px';
-            ghost.style.textAlign = 'center';
-            ghost.style.fontWeight = 'bolder';
-            ghost.textContent = itemDescription;
-            ghost.style.position = "fixed";
-            ghost.style.pointerEvents = "none";
-            ghost.style.opacity = "0.85";
-        
-            document.body.appendChild(ghost);  
-        }
-    }
-
-    function toggleModifierAndUpdate(modifier){
-        State.toggleModifier(modifier);
-        renderProfileDetails();
-        updateKeyboardVisuals();
-    }
-    
-
-    document.addEventListener("keydown", (e)=>{
-      
-            if(e.key == "1" && e.ctrlKey)
-                toggleModifierAndUpdate("LShift");
-            if(e.key == "2"  && e.ctrlKey)    
-                toggleModifierAndUpdate("LControl"); 
-            if(e.key == "3"  && e.ctrlKey)  
-                toggleModifierAndUpdate("LAlt"); 
-        
-   
-    });
-
-    keyContainer.addEventListener("mousedown", (e) => {
-        const keyNode =  e.target.closest(".keyboard-key");
-        if(!keyNode) return;
-
-        draggedNode = keyNode;
-        draggedNodeName = keyNode.querySelector(".key-description").textContent;
-        draggedKeyName = keyNode.dataset.keyName;
-        draggedData = State.getKeyData(draggedKeyName);  
-        draggedLayer = State.getCurrentLayer();
-        
-
-       
-        
-        clicked = true;
-    
-
-    });
-
-    document.body.addEventListener("mousemove", (e) => {
-        if(!clicked) return;
-       
-        if(!dragging) createGhost(e, draggedNodeName);
-        dragging = true;
-        if(!ghost) return;
-         ghost.style.transform = "translate(-50%, -50%)";
-         ghost.style.left = `${e.clientX}px`;
-         ghost.style.top = `${e.clientY}px`;
-    });
-
-    document.addEventListener("mouseup", (e) => {
-        dragging = false;
-        clicked = false;
-
-        if (!ghost) return;
-        const keyNode = e.target.closest(".keyboard-key");
-        if(keyNode){
-            const targetKeyName = keyNode.dataset.keyName;
-
-            targetData = State.getKeyData(targetKeyName);
-
-            // Swap...
-            if(draggedData) State.setKeyData(targetKeyName, draggedData.down, draggedData.up);
-            else State.setKeyData(targetKeyName,  "", "");
-            if(targetData) State.setLayerKeyData(draggedLayer, draggedKeyName, targetData.down, targetData.up);
-            else State.setLayerKeyData(draggedLayer, draggedKeyName, "", "")
-            
-            renderProfileDetails();
-            updateKeyboardVisuals();
-
-        }
-        ghost.remove();
-        ghost = null;
-        
-    });
-
-     window.addEventListener("blur", (e) => {
-        dragging = false;
-        clicked = false;
-        if(ghost){
-            ghost.remove();
-            ghost = null;
-        }
-     });
-}
-
-
-
-/*
-function dragMoveKeyData(){
-    let draggedData  = "";
-    let targetData = "";
-    let draggedKeyName = "";
-
-    function toggleModifierAndUpdate(modifier){
-        State.toggleModifier(modifier);
-        renderProfileDetails();
-        updateKeyboardVisuals();
-    }
-    
-
-    document.addEventListener("keydown", (e)=>{
-      
-            if(e.key == "1")
-                toggleModifierAndUpdate("LShift");
-            if(e.key == "2")    
-                toggleModifierAndUpdate("LControl"); 
-            if(e.key == "3")    
-                toggleModifierAndUpdate("LAlt"); 
-        
-   
-    });
-
-    keyContainer.addEventListener("dragstart", (e) =>{
-        draggedKeyName = e.target.dataset.keyName;
-        draggedData = State.getKeyData(draggedKeyName);   
-
-       
-    });
-
-    keyContainer.addEventListener("dragover", (e) =>{
-        if(e.target.closest(".keyboard-key")) e.preventDefault();
-       
-    });
-    //After DROP, Swap the key values
-
-    keyContainer.addEventListener("drop", (e) =>{
-        e.preventDefault();
-        const targetKeyName = e.target.closest(".keyboard-key").dataset.keyName;
-
-        targetData = State.getKeyData(targetKeyName);
-
-        // Swap...
-        if(draggedData) State.setKeyData(targetKeyName, draggedData.down, draggedData.up);
-        else State.setKeyData(targetKeyName,  "", "");
-        if(targetData) State.setKeyData(draggedKeyName, targetData.down, targetData.up);
-        else State.setKeyData(draggedKeyName, "", "")
-        
-        renderProfileDetails();
-        updateKeyboardVisuals();
-    });
-
-    
-
-}
-*/
-
-dragMoveKeyDataNew();
-
 function renderProfileDetails() {
     const programSpecificSettingsDiv = document.getElementById("program-specific-settings");
     const programPathDisplay = document.getElementById("program-path-display");
@@ -792,12 +520,12 @@ function renderProfileDetails() {
 
     const currentKeyNameSpanDown = document.getElementById("current-key-name-down");
 
-     const currentProgram = State.getCurrentProgram(); 
+    const currentProgram = programProfiles[selectedProgramName];
     if (!currentProgram) return;
 
-    currentProgramNameSpan.textContent = currentProgram.displayName || State.selection.programName;
+    currentProgramNameSpan.textContent = currentProgram.displayName || selectedProgramName;
 
-    if (State.selection.programName === "Global") {
+    if (selectedProgramName === "Global") {
         programSpecificSettingsDiv.style.visibility = "hidden";
     } else {
         programSpecificSettingsDiv.style.visibility = "visible";
@@ -815,25 +543,35 @@ function renderProfileDetails() {
     profileSelect.value = currentProgram.activeProfile || "Default";
     deleteProfileBtn.disabled = profileSelect.value === "Default";
 
-    
     const currentProfileName = profileSelect.value;
+    const currentProfile = currentProgram.profiles[currentProfileName];
 
-    currentKeyNameSpanDown.textContent = State.selection.keyName || "None";
+    // Determine which hotkey map to READ from based on the active modifier
+    let hotkeyMap;
+    if (currentProfile) {
+        switch (activeModifier) {
+            case 'LShift':   hotkeyMap = currentProfile.shift_hotkeys || {}; break;
+            case 'LControl': hotkeyMap = currentProfile.ctrl_hotkeys  || {}; break;
+            case 'LAlt':     hotkeyMap = currentProfile.alt_hotkeys   || {}; break;
+            default:         hotkeyMap = currentProfile.hotkeys       || {};
+        }
+    } else {
+        hotkeyMap = {};
+    }
+
+    currentKeyNameSpanDown.textContent = selectedKeyName || "None";
 
    // Assume editorDown and editorUp are the CodeMirror instances from the previous example
-    
 
-    if (State.selection.keyName) {
+    if (selectedKeyName) {
         // Enable the editors
         editorDown.setOption("readOnly", false);
         editorUp.setOption("readOnly", false);
 
-        const hotkeyData = State.getKeyData(State.selection.keyName); // Read from your map
-        
-       
+        const hotkeyData = hotkeyMap[selectedKeyName]; // Read from your map
+
         if (hotkeyData) {
             // Use setValue() to update the content
-    
             editorDown.setValue(hotkeyData.down || "");
             editorUp.setValue(hotkeyData.up || "");
         } else {
@@ -877,10 +615,10 @@ function updateKeyboardVisuals() {
 
     const isCycleEnabled = enableCycleHotkeyCheckbox.checked;
     const cycleHotkey = cycleHotkeyInput.value.trim().toLowerCase();
+    const currentProfileName = profileSelect.value;
+    const currentProgram = programProfiles[selectedProgramName];
     
-    // We already got these earlier in your code, but let's be safe
-    const currentProfile = State.getCurrentProfile();
-
+    const currentProfile = currentProgram ? currentProgram.profiles[currentProfileName] : null;
     if (!currentProfile) {
         document.querySelectorAll(".keyboard-key").forEach(keyDiv => {
             keyDiv.classList.remove("assigned", "editing", "reserved", "modifier-active", "has-modifier-macro");
@@ -888,14 +626,27 @@ function updateKeyboardVisuals() {
         return;
     };
 
+    const baseHotkeys = currentProfile.hotkeys || {};
+    const shiftHotkeys = currentProfile.shift_hotkeys || {};
+    const ctrlHotkeys = currentProfile.ctrl_hotkeys || {};
+    const altHotkeys = currentProfile.alt_hotkeys || {};
+
     document.querySelectorAll(".keyboard-key").forEach((keyDiv) => {
         const keyName = keyDiv.dataset.keyName;
         keyDiv.classList.remove("assigned", "editing", "reserved", "modifier-active", "has-modifier-macro");
 
-        // 1. Get the hotkey data for the CURRENTLY VISIBLE layer
-        const hotkeyDataOnThisLayer = State.getKeyData(keyName);
+        // --- START: RESTORED AND CORRECTED LOGIC ---
 
-        // 2. Extract description (visuals)
+        // 1. Get the hotkey data for the CURRENTLY VISIBLE layer to find its description.
+        let hotkeyDataOnThisLayer;
+        switch (activeModifier) {
+            case 'LShift':   hotkeyDataOnThisLayer = shiftHotkeys[keyName]; break;
+            case 'LControl': hotkeyDataOnThisLayer = ctrlHotkeys[keyName];  break;
+            case 'LAlt':     hotkeyDataOnThisLayer = altHotkeys[keyName];   break;
+            default:         hotkeyDataOnThisLayer = baseHotkeys[keyName];
+        }
+
+        // 2. Extract the script from that data and set the description span's text.
         const downScript = hotkeyDataOnThisLayer?.down || "";
         const descriptionSpan = keyDiv.querySelector(".key-description");
         if (descriptionSpan) {
@@ -903,50 +654,32 @@ function updateKeyboardVisuals() {
             descriptionSpan.title = descriptionSpan.textContent;
         }
 
-        // 3. Class assignments
+        // --- END: RESTORED AND CORRECTED LOGIC ---
+
+        // 3. Now, proceed with the class assignments.
         if (hotkeyDataOnThisLayer) {
             keyDiv.classList.add("assigned");
         }
         
-
-        // --- INSERT THIS NEW BLOCK ---
-        const currentMod = State.selection.modifier; // 'LShift', 'LControl', 'LAlt', or null
         let hasMacroOnOtherLayer = false;
-
-        // Check Shift Layer (If we aren't currently looking at Shift)
-        if (currentMod !== 'LShift' && currentProfile.shift_hotkeys && currentProfile.shift_hotkeys[keyName]) {
-            hasMacroOnOtherLayer = true;
-        }
-        // Check Ctrl Layer
-        if (currentMod !== 'LControl' && currentProfile.ctrl_hotkeys && currentProfile.ctrl_hotkeys[keyName]) {
-            hasMacroOnOtherLayer = true;
-        }
-        // Check Alt Layer
-        if (currentMod !== 'LAlt' && currentProfile.alt_hotkeys && currentProfile.alt_hotkeys[keyName]) {
-            hasMacroOnOtherLayer = true;
-        }
-        // Check Base Layer (If we are looking at a modifier layer, check if base has a macro)
-        if (currentMod !== null && currentProfile.hotkeys && currentProfile.hotkeys[keyName]) {
-            hasMacroOnOtherLayer = true;
-        }
+        if (activeModifier !== 'LShift' && shiftHotkeys[keyName]) hasMacroOnOtherLayer = true;
+        if (activeModifier !== 'LControl' && ctrlHotkeys[keyName]) hasMacroOnOtherLayer = true;
+        if (activeModifier !== 'LAlt' && altHotkeys[keyName]) hasMacroOnOtherLayer = true;
+        if (activeModifier && baseHotkeys[keyName]) hasMacroOnOtherLayer = true;
 
         if (hasMacroOnOtherLayer) {
             keyDiv.classList.add("has-modifier-macro");
         }
 
-
-        // --- INSERT THIS NEW BLOCK ---
-        if (keyName === State.selection.modifier) {
+        if (keyName === activeModifier) {
             keyDiv.classList.add('modifier-active');
         }
-        
 
         if (isCycleEnabled && cycleHotkey && keyName.toLowerCase() === cycleHotkey) {
             keyDiv.classList.add("reserved");
         }
-       
-        // --- INSERT THIS NEW BLOCK ---
-        if (keyName === State.selection.keyName) {
+
+        if (keyName === selectedKeyName) {
             keyDiv.classList.add("editing");
         }
     });
@@ -960,9 +693,9 @@ function checkForProgramConflicts() {
   const saveBtn = document.getElementById("save-btn");
   const seenCombinations = new Map();
 
-  for (const progName in State.data) {
+  for (const progName in programProfiles) {
     if (progName === "Global") continue;
-    const program = State.data[progName];
+    const program = programProfiles[progName];
     if (!program.exeName) continue;
 
     const combinationKey = `${program.exeName.toLowerCase()}|${(program.windowTitle || "").toLowerCase()}`;
@@ -1020,11 +753,10 @@ function checkForHotkeyConflicts() {
 
   // AHK hotkeys are case-insensitive, so we should compare them that way.
   const hotkeyPattern = cycleHotkey.toLowerCase() + "::";
-
-  const currentProgram = State.getCurrentProgram();
+  const currentProgram = programProfiles[selectedProgramName];
 
   for (const profileName in currentProgram.profiles) {
-    const profile = State.getCurrentProfile();
+    const profile = currentProgram.profiles[profileName];
     if (profile.hotkeys) {
       // Find any hotkey definition that starts with our cycle hotkey pattern
       for (const hotkeyDef in profile.hotkeys) {
@@ -1385,7 +1117,7 @@ function generateAhkScriptDriver() {
 
     let functionsString = ``;
     let activeProfilesInitString = ``;
-    const programDataForAhk = JSON.parse(JSON.stringify(State.data));
+    const programDataForAhk = JSON.parse(JSON.stringify(programProfiles));
     for (const progKey in programDataForAhk) {
         const escapedProgKey = progKey.replace(/["`]/g, m => '`' + m);
         const escapedActiveProfile = programDataForAhk[progKey].activeProfile.replace(/["`]/g, m => '`' + m);
@@ -1756,7 +1488,7 @@ function generateAhkScript() {
     };
 
     // --- DATA & FUNCTION GENERATION ---
-    const dataForMap = JSON.parse(JSON.stringify(State.data)); // Deep copy
+    const dataForMap = JSON.parse(JSON.stringify(programProfiles)); // Deep copy
     let functionsString = `
 ; ===================================================================
 ; --- DYNAMICALLY GENERATED HOTKEY FUNCTIONS ---
@@ -1841,9 +1573,9 @@ global ActiveProfiles := Map()
 global g_CurrentCatchList := Map()
 `;
 
-    for (const progName in State.data) {
+    for (const progName in programProfiles) {
         const escapedProgName = progName.replace(/`/g, '``').replace(/"/g, '""');
-        const escapedActiveProfile = State.data[progName].activeProfile.replace(/`/g, '``').replace(/"/g, '""');
+        const escapedActiveProfile = programProfiles[progName].activeProfile.replace(/`/g, '``').replace(/"/g, '""');
         script += `ActiveProfiles["${escapedProgName}"] := "${escapedActiveProfile}"\n`;
     }
 
@@ -1913,8 +1645,8 @@ MainContextLoop() {
 `;
 
     let contextIfChain = 'if';
-    for (const progName in State.data) {
-        const program = State.data[progName];
+    for (const progName in programProfiles) {
+        const program = programProfiles[progName];
         if (progName === "Global" || !program.exeName) continue;
         
         const titlePart = program.windowTitle ? program.windowTitle.replace(/`/g, '``').replace(/"/g, '""') + " " : "";
@@ -1963,8 +1695,8 @@ MainContextLoop() {
     }
 `;
 
-    for (const progName in State.data) {
-        const program = State.data[progName];
+    for (const progName in programProfiles) {
+        const program = programProfiles[progName];
         const parsedHotkey = parseAhkHotkey(program.cycleHotkey); 
         if (parsedHotkey) {
             const baseKey = parsedHotkey.key;
@@ -2016,8 +1748,8 @@ OnUniqueKeyboard(KeyboardNumber, VKeyCode, IsDown, WasDown, IsExtended, LeftCtrl
 `;
 
     contextIfChain = 'if';
-    for (const progName in State.data) {
-        const program = State.data[progName];
+    for (const progName in programProfiles) {
+        const program = programProfiles[progName];
         if (progName === "Global" || !program.exeName) continue;
         
         const titlePart = program.windowTitle ? program.windowTitle.replace(/`/g, '``').replace(/"/g, '""') + " " : "";
@@ -2372,12 +2104,12 @@ function setupEventListeners() {
 
     profileEditorContainer.addEventListener("input", (e) => {
         if (e.target.id !== "script-editor-down" && e.target.id !== "script-editor-up") {
-            const currentProgram = State.getCurrentProgram();
+            const currentProgram = programProfiles[selectedProgramName];
             if (!currentProgram) return;
 
             switch (e.target.id) {
                 case "window-title-input":
-                    if (State.selection.programName !== "Global") currentProgram.windowTitle = e.target.value;
+                    if (selectedProgramName !== "Global") currentProgram.windowTitle = e.target.value;
                     runAllValidations();
                     break;
                 case "cycle-hotkey-input":
@@ -2397,15 +2129,48 @@ function setupEventListeners() {
     // --- The single, reusable function that does all the work ---
     function syncModelWithEditors() {
         // 1. Guard clauses: a cleaner way to handle initial checks
-        if (!State.selection.keyName) return;
+        if (!selectedKeyName) return;
 
-        
+        const currentProgram = programProfiles[selectedProgramName];
+        if (!currentProgram) return;
+
+        // 2. The same setup logic as before, but now in one place
+        const currentProfileName = document.getElementById("mapping-profile-select").value;
+        const currentProfile = currentProgram.profiles[currentProfileName];
+
+
+        let hotkeyMapName;
+        switch (activeModifier) {
+            case 'LShift':   hotkeyMapName = 'shift_hotkeys'; break;
+            case 'LControl': hotkeyMapName = 'ctrl_hotkeys';  break;
+            case 'LAlt':     hotkeyMapName = 'alt_hotkeys';   break;
+            default:         hotkeyMapName = 'hotkeys';
+        }
+
+        if (!currentProfile[hotkeyMapName]) {
+            currentProfile[hotkeyMapName] = {};
+        }
+        const hotkeys = currentProfile[hotkeyMapName];
+
+        // 3. Get the values from BOTH editors
         const downScript = editorDown.getValue();
         const upScript = editorUp.getValue();
 
-        State.setKeyData(State.selection.keyName, downScript, upScript);
+        // 4. Decide whether to update the existing hotkey or delete it
+        const isHotkeyEmpty = (!downScript || downScript.trim() === "") && (!upScript || upScript.trim() === "");
 
+        if (isHotkeyEmpty) {
+            // If both scripts are empty, remove the hotkey entry entirely
+            delete hotkeys[selectedKeyName];
+        } else {
+            // Otherwise, update or create the hotkey entry
+            hotkeys[selectedKeyName] = {
+                down: downScript,
+                up: upScript
+            };
+        }
 
+        // 5. Finally, update the UI
         updateKeyboardVisuals();
     }
 
@@ -2426,10 +2191,10 @@ function setupEventListeners() {
             if (!progName) progName = "Program";
             let counter = 2;
             let originalName = progName;
-            while (State.data[progName]) {
+            while (programProfiles[progName]) {
                 progName = `${originalName}_${counter++}`;
             }
-            State.data[progName] = {
+            programProfiles[progName] = {
                 displayName: progName,
                 path: filePath,
                 exeName: exeName,
@@ -2438,8 +2203,7 @@ function setupEventListeners() {
                 cycleHotkey: "",
                 profiles: { Default: { hotkeys: {} } },
             };
-            State.selectProgram(progName);  
-
+            selectedProgramName = progName;
             renderUI();
         }
     });
@@ -2459,8 +2223,8 @@ function setupEventListeners() {
                     message: `Are you sure you want to delete the program profile for "${programNameToHandle}"?`,
                 });
                 if (confirmed) {
-                    delete State.data[programNameToHandle];
-                    State.selection.programName = "Global";
+                    delete programProfiles[programNameToHandle];
+                    selectedProgramName = "Global";
                     renderUI();
                 }
             })();
@@ -2483,13 +2247,13 @@ function setupEventListeners() {
                     const programItemName = programItem.getAttribute("data-program-name");
         
                     const newProgramProfiles = {};
-                    for(const programName in State.data) {
-                        if(programName === prevSiblingName) newProgramProfiles[programItemName] = State.data[programItemName];         
-                        else if(programName === programItemName) newProgramProfiles[prevSiblingName] = State.data[prevSiblingName]          
-                        else newProgramProfiles[programName] = State.data[programName];
+                    for(const programName in programProfiles) {
+                        if(programName === prevSiblingName) newProgramProfiles[programItemName] = programProfiles[programItemName];         
+                        else if(programName === programItemName) newProgramProfiles[prevSiblingName] = programProfiles[prevSiblingName]          
+                        else newProgramProfiles[programName] = programProfiles[programName];
                     }
                     
-                    State.data = newProgramProfiles;
+                    programProfiles = newProgramProfiles;
                     const moveHeight = prevSibling.offsetHeight + 5;
 
                     document.documentElement.style.setProperty('--moveValue', `${moveHeight}px`);
@@ -2509,8 +2273,8 @@ function setupEventListeners() {
                 }
         }
         else {
-             if (State.selection.programName !== programNameToHandle) {
-                State.selectProgram(programNameToHandle);
+            if (selectedProgramName !== programNameToHandle) {
+                selectedProgramName = programNameToHandle;
                 renderUI();
             }
         }
@@ -2548,13 +2312,13 @@ function setupEventListeners() {
                 if (!progName) progName = "Program";
                 let counter = 2;
                 let originalName = progName;
-                while (State.data[progName]) {
+                while (programProfiles[progName]) {
                     progName = `${originalName}_${counter++}`;
                 }
-                State.data[progName] = {
+                programProfiles[progName] = {
                     displayName: progName, path: filePath, exeName: exeName, windowTitle: "", activeProfile: "Default", cycleHotkey: "", profiles: { Default: { hotkeys: {} } },
                 };
-                State.selectProgram(progName);
+                selectedProgramName = progName;
                 renderUI();
                 modal.style.display = "none";
             } else {
@@ -2623,7 +2387,7 @@ function setupEventListeners() {
         const finishEdit = () => {
             const newName = renameInput.value.trim();
             if (newName) {
-                State.data[progName].displayName = newName;
+                programProfiles[progName].displayName = newName;
                 const displayNameSpan = nameWrapper.querySelector(".program-display-name");
                 const internalNameSpan = nameWrapper.querySelector(".program-internal-name");
                 displayNameSpan.textContent = newName;
@@ -2642,7 +2406,7 @@ function setupEventListeners() {
 
     profileEditorContainer.addEventListener("click", async (e) => {
         const target = e.target;
-        const currentProgram = State.getCurrentProgram();
+        const currentProgram = programProfiles[selectedProgramName];
         if (!currentProgram) return;
         const keyDiv = target.closest(".keyboard-key");
         if (keyDiv) {
@@ -2650,12 +2414,12 @@ function setupEventListeners() {
             if (keyDiv.classList.contains('disabled')) {
               return; // If the key is disabled, do nothing and exit the function.
             }
-            const keyName = keyDiv.dataset.keyName; 
-            
+            const keyName = keyDiv.dataset.keyName;
             if (keyName === 'LShift' || keyName === 'LControl' || keyName === 'LAlt') {
-                State.toggleModifier(keyName);
+                activeModifier = activeModifier === keyName ? null : keyName;
+                selectedKeyName = null;
             } else {
-                State.selection.keyName = keyName;
+                selectedKeyName = keyName;
             }
             renderProfileDetails();
             updateKeyboardVisuals();
@@ -2684,7 +2448,7 @@ function setupEventListeners() {
               if (!currentProgram.profiles[newProfileName]) {
                 currentProgram.profiles[newProfileName] = { hotkeys: {} };
                 currentProgram.activeProfile = newProfileName;
-                State.selection.keyName = null;
+                selectedKeyName = null;
                 renderUI();
               } else {
                  Swal.fire(`Profile "${newProfileName}" already exists.`);
@@ -2709,7 +2473,7 @@ function setupEventListeners() {
                 if (confirmed) {
                   delete currentProgram.profiles[profileToDelete];
                   currentProgram.activeProfile = "Default";
-                  State.selection.keyName = null;
+                  selectedKeyName = null;
                   renderUI();
                 }
               }
@@ -2736,13 +2500,12 @@ function setupEventListeners() {
 
     profileEditorContainer.addEventListener("change", (e) => {
         const target = e.target;
-        const currentProgram = State.getCurrentProgram();
-
+        const currentProgram = programProfiles[selectedProgramName];
         if (!currentProgram) return;
         switch (target.id) {
             case "mapping-profile-select":
                 currentProgram.activeProfile = target.value;
-                State.selection.keyName = null;
+                selectedKeyName = null;
                 renderProfileDetails();
                 updateKeyboardVisuals();
                 break;
@@ -2766,7 +2529,7 @@ function setupEventListeners() {
         statusMsg.style.color = "black";
         try {
             await fs.mkdir(USER_CONFIG_DIR, { recursive: true });
-            await fs.writeFile(SETTINGS_JSON_PATH, JSON.stringify(State.data, null, 2), "utf8");
+            await fs.writeFile(SETTINGS_JSON_PATH, JSON.stringify(programProfiles, null, 2), "utf8");
             const generation = generateAhkScript();
             const generationDriver = generateAhkScriptDriver();
           
