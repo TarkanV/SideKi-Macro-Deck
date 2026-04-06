@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "bluebird": "3.0.5",
-    "hid-handler": "0.0.8",
-    "pm2": "^3.5.2",
-    "yamljs": "^0.3.0"
-  }
-}

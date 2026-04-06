@@ -10,6 +10,7 @@ build.bat
 newAHK.ahk
 newAHK2.ahk 
 testMSG.ahk
+/deps/zadig-2.9.exe
 
 Side-Ki Mirror/
 

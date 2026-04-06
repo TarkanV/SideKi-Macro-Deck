@@ -28,5 +28,8 @@
   "devDependencies": {
     "@electron-forge/cli": "^7.8.3",
     "electron": "^38.0.0-beta.1"
+  },
+  "dependencies": {
+    "usb": "^2.17.0"
   }
 }

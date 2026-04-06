@@ -26,7 +26,7 @@
     <title>Side-Ki Deck</title>
    
     <script type="module" src="script.js" defer></script>
-    <script src="./sweetalert2/sweetalert2.all.min.js"></script>
+    <script src="deps/sweetalert2/sweetalert2.all.min.js"></script>
     
 
     <!-- CodeMirror-->
@@ -42,8 +42,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
 
     <!--AutoHotKey Mode-->
-     <link rel="stylesheet" href="codemirror-ahk/vscode-light.css">
-     <script src="codemirror-ahk/autohotkey.js"></script>
+     <link rel="stylesheet" href="deps/codemirror-ahk/vscode-light.css">
+     <script src="deps/codemirror-ahk/autohotkey.js"></script>
     <!-- The Placeholder Addon -->
   
 
@@ -59,8 +59,8 @@
         <!-- ============================================= -->
         <div id="program-list-container">
             <h2 id="program-list-header">
-                <img src="apps.png" alt="Apps" class="header-icon">
-                <span class="header-title">Apps</span>
+                <img src="res/apps.png" alt="Apps" class="header-icon">
+                <span class="header-title">APPS</span>
             </h2>
             <div id="program-list">
                 <!-- Program items will be generated here by script.js -->
@@ -188,9 +188,11 @@
             <button id="save-btn">
                 <span class="material-symbols-outlined">save_as</span>
                 Save</button>
+                <!--
             <button id="run-btn" title="Run the AHK Script with MultiKB in Raw Input/Keyboard Hook Mode. (limited app interception but more stable)">
                 <span class="material-symbols-outlined">play_arrow</span>
                 Run (RIKH)</button>
+             -->   
             <button id="run-driver-btn" title="Run the AHK Script with MyKBD in Driver Mode. (universal app interception but less stable)">
                 <span class="material-symbols-outlined">play_arrow</span>
                 Run (Driver)</button>    

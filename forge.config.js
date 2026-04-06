@@ -5,10 +5,11 @@ module.exports = {
       asar: true,
       extraResource: [
       './deps',
+      './res',
     ],
     ignore :[
-        '/deps',
-        'node_modules',
+        '/deps/zadig-2.9.exe',
+    
     ],
     
 

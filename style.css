@@ -19,7 +19,7 @@ h2 {
     margin-top: 0;
     color: #555;
     border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
+    padding-bottom: 0px;
 }
 
 hr {
@@ -51,6 +51,12 @@ input[type="text"], select, button {
 
 button {
     cursor: pointer;
+    background-color : white;
+    color : black;
+}
+input, select{
+    background-color : white;
+    color : black;
 }
 
 
@@ -111,16 +117,17 @@ button {
     align-items: center;
     user-select: none; /* Prevent accidentally selecting the header text */
     flex-shrink: 0;    /* Prevent the header from shrinking */
+    margin-bottom: 0.3rem;
 }
 
 .header-icon {
-    width: 46px;
-    height: 46px;
-    padding : 0 2px;
+    width: 30px;
+    height: 30px;
+    padding-left : 8px;
     margin-bottom: 0.5rem;
 }
 .header-title{
-    font-size: 2rem;
+    font-size: 1.5rem;
     margin-left : 0.5rem;
 }
 
@@ -954,3 +961,46 @@ button {
   background: rgba(0, 0, 0, 0.4);
 }
 
+
+#device-selector-container {
+    padding: 10px 3px;
+    border-bottom: 1px solid #ddd;
+    background: #f9f9f9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden; /* Crucial for the collapsed state */
+    flex-shrink: 0;
+}
+
+
+/* Hide the dropdown and the action buttons when collapsed */
+#device-selector,
+#add-device-btn,
+#edit-device-btn,
+#delete-device-btn {
+    opacity: 0;
+    transition: opacity 0.1s ease-out;
+    pointer-events: none;
+}
+
+
+/* Show them when the sidebar is hovered */
+#program-list-container:hover #device-selector,
+#program-list-container:hover #add-device-btn,
+#program-list-container:hover #edit-device-btn,
+#program-list-container:hover #delete-device-btn {
+    opacity: 1;
+    transition: opacity 0.2s ease-in 0.1s;
+    pointer-events: auto;
+}
+
+#device-selector {
+    min-width: 120px;
+    flex-grow: 1;
+}
+
+#device-selector-container {
+    min-width: 44px; /* Matches your 50px sidebar - padding */
+    text-align: center;
+}
