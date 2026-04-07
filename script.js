@@ -102,8 +102,8 @@ let ahkProcess = null;
 const defaultData = {
   devices: {
     "Keyboard 1": { // Matches your config in myKeyboards
-      vendor : 0,
-      prod : 0,
+      vendor : "",
+      prod : "",
       ignoreNumLock: false,
       programs: {
         Global: {
@@ -198,6 +198,10 @@ const State = {
 };
 
 
+//HTML Node List 
+
+const programListNode = document.getElementById("program-list");
+
 
 
 // Add this near your other requires
@@ -206,14 +210,6 @@ const State = {
 const MacroDriver = require('./macro-driver/usb-driver.js');
 
 // Define your target keyboards (replaces actions.yml)
-const myKeyboards =[
-    { 
-        name: "MySuperKeyBoard", 
-        vendor: 0xC0F4, 
-        prod: 0x04E0 
-    }
-    // You can even load this from State.data later!
-];
 
 
 // --- LIVE DRIVER STATUS INDICATOR ---
@@ -411,11 +407,11 @@ function renderDeviceSelector() {
     if (!container) {
         container = document.createElement('div');
         container.id = 'device-selector-container';
-        container.style = "padding: 10px; border-bottom: 1px solid #ddd; background: #f9f9f9; display: flex; align-items: center; gap: 8px;";
+        
         
         container.innerHTML = `
-            <span class="material-symbols-outlined" style="font-size: 20px;">keyboard</span>
-            <select id="device-selector" style="flex-grow: 1; padding: 4px; border-radius: 4px;"></select>
+            <span class="material-symbols-outlined">keyboard</span>
+            <select id="device-selector"></select>
             <button id="add-device-btn" title="Add Keyboard" style="padding: 2px 6px;">+</button>
             <button id="edit-device-btn" title="Edit Keyboard IDs" style="padding: 2px 6px;">✎</button>
             <button id="delete-device-btn" title="Delete Keyboard" style="padding: 2px 6px;">-</button>
@@ -436,12 +432,12 @@ function renderDeviceSelector() {
         const { value: formValues } = await Swal.fire({
             title: 'Add New Keyboard',
             html:
-                '<input id="swal-dev-name" class="swal2-input" placeholder="Keyboard Name (e.g. Numpad)">' +
-                '<input id="swal-dev-vid" class="swal2-input" placeholder="Vendor ID (e.g. 0xC0F4)">' +
-                '<input id="swal-dev-pid" class="swal2-input" placeholder="Product ID (e.g. 0x04E0)">' +
+                '<div class="device-info"><input id="swal-dev-name" class="swal2-input" placeholder="Keyboard Name (e.g. Numpad)"></div>' +
+                '<div class="device-info"><span class="id-prefix">0x</span><input id="swal-dev-vid" class="swal2-input" placeholder="Vendor ID (e.g. 0xC0F4)"></div>' +
+                '<div class="device-info"><span class="id-prefix">0x</span><input id="swal-dev-pid" class="swal2-input" placeholder="Product ID (e.g. 0x04E0)"></div>' +
                 // === PRECISE CHANGE: Add Checkbox ===
                 '<div style="margin-top:15px; text-align:left; width:80%; margin-left:auto; margin-right:auto;">' +
-                '<input type="checkbox" id="swal-dev-ignore-num" style="transform: scale(1.2); margin-right: 8px;">' +
+                '<input  type="checkbox" id="swal-dev-ignore-num" style="transform: scale(1.2); margin-right: 8px;">' +
                 '<label for="swal-dev-ignore-num">Ignore Host NumLock</label></div>',
             focusConfirm: false,
             showCancelButton: true,
@@ -485,10 +481,10 @@ function renderDeviceSelector() {
             const { value: formValues } = await Swal.fire({
                 title: `Edit ${currentDev}`,
                 html:
-                    `<div style="text-align:left; width:80%; margin:auto;">` +
-                    `<label>Device Name:</label><input id="swal-dev-name" class="swal2-input" value="${currentDev}">` +
-                    `<label>Vendor ID:</label><input id="swal-dev-vid" class="swal2-input" value="${devData.vendor}">` +
-                    `<label>Product ID:</label><input id="swal-dev-pid" class="swal2-input" value="${devData.prod}">` +
+                    `<div class="input-field" style="text-align:left; width:80%; margin:auto;">` +
+                    ` <label>Device Name:</label><div class="device-info"><input id="swal-dev-name" class="swal2-input" value="${currentDev}"></div>` +
+                    `<label>Vendor ID:</label><div class="device-info"><span class="id-prefix">0x</span><input id="swal-dev-vid" class="swal2-input" value="${devData.vendor}"></div>` +
+                    `<label>Product ID:</label><div class="device-info"><span class="id-prefix">0x</span><input id="swal-dev-pid" class="swal2-input" value="${devData.prod}"></div>` +
                     // === PRECISE CHANGE: Add Checkbox ===
                     `<div style="margin-top:15px;">` +
                     `<input type="checkbox" id="swal-dev-ignore-num" style="transform: scale(1.2); margin-right: 8px;" ${isChecked}>` +
@@ -779,9 +775,12 @@ async function showProcessList() {
 
 
 function renderProgramList() {
-    const programListDiv = document.getElementById('program-list');
+    
+    const scrollTop = programListNode.scrollTop;
+
+
     const template = document.getElementById('program-item-template');
-    programListDiv.innerHTML = '';
+    programListNode.innerHTML = '';
 
     const currentPrograms = State.data.devices[State.selection.deviceName].programs;
     
@@ -830,8 +829,12 @@ function renderProgramList() {
             deleteBtn.remove();
         }
 
-        programListDiv.appendChild(clone);
+        programListNode.appendChild(clone);
     }
+
+    
+  
+    programListNode.scrollTop = scrollTop;
 }
 
 
@@ -1983,8 +1986,8 @@ async function runOrReloadScript(isDriver = false) {
         // 4. Start the USB Driver (which will now send data via this process)
         const targetKeyboards = Object.keys(State.data.devices).map(devName => ({
             name: devName, 
-            vendor: State.data.devices[devName].vendor, 
-            prod: State.data.devices[devName].prod,
+            vendor: "0x" + State.data.devices[devName].vendor, 
+            prod: "0x" + State.data.devices[devName].prod,
             ignoreNumLock : State.data.devices[devName].ignoreNumLock,
         }));
 
@@ -2013,13 +2016,6 @@ function setupEventListeners() {
     const qwertyView = document.getElementById('qwerty-keyboard');
     const numpadView = document.getElementById('numpad-keyboard');
     //const reorderUpBtns = document.querySelectorAll('.reorder-btn');
-    
-    (function reorderUp(){
-        const programListNode = document.getElementById("program-list");
-        programListNode.addEventListener("click", (e) => {
-           
-        });
-    })();
     
 
     if (switchButton) { // Good practice to check if the element exists
@@ -2172,12 +2168,18 @@ function setupEventListeners() {
                    
                     prevSibling.classList.add("moving-down");
                     programItem.classList.add("moving-up");
+                    
                     setTimeout(() =>{
                      
                        prevSibling.classList.remove("moving-down");
                        programItem.classList.remove("moving-up");
+
+                       
                        renderUI();
+                       
                     }, 210);
+
+                    
                       
                   
 
@@ -2277,8 +2279,8 @@ function setupEventListeners() {
     });
     
 
-    const programListDiv = document.getElementById("program-list");
-    programListDiv.addEventListener("dblclick", (e) => {
+    
+    programListNode.addEventListener("dblclick", (e) => {
         const programItem = e.target.closest(".program-item");
         if (!programItem) return;
         const progName = programItem.dataset.programName;

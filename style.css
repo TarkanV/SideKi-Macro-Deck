@@ -15,6 +15,9 @@ body {
     --moveValue : 10px;
 }
 
+*{
+    box-sizing: border-box;
+}
 h2 {
     margin-top: 0;
     color: #555;
@@ -84,7 +87,7 @@ input, select{
     display: flex;
     flex-direction: column;
     background-color: #f7f7f7;
-    overflow: hidden;   /* Hide text that overflows when collapsed */
+    
 
     transition: width 0.2s ease-out; /* Smooth animation for width changes */
 }
@@ -118,12 +121,17 @@ input, select{
     user-select: none; /* Prevent accidentally selecting the header text */
     flex-shrink: 0;    /* Prevent the header from shrinking */
     margin-bottom: 0.3rem;
+
+    margin : 0;
+     padding-left : 8px;
 }
 
 .header-icon {
     width: 30px;
     height: 30px;
-    padding-left : 8px;
+    min-width: 30px;
+    min-height: 30px;
+   
     margin-bottom: 0.5rem;
 }
 .header-title{
@@ -197,7 +205,7 @@ input, select{
 .program-item {
     position: relative; /* Needed for positioning the input */
     padding: 8px;
-    min-height : 14px;
+    min-height : 32px;
     cursor: pointer;
     border-radius: 4px;
     margin-bottom: 5px;
@@ -222,6 +230,8 @@ input, select{
 .program-list-icon {
     width: 30px;
     height: 30px;
+    min-height: 30px;
+    min-width: 30px;
     margin-right: 8px;
     background-color: #f0f0f0; /* Placeholder color */
     border-radius: 3px;
@@ -259,7 +269,7 @@ input, select{
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    margin-left: 65px; 
+    margin-left: 40px; 
 }
 
 
@@ -426,7 +436,7 @@ input, select{
     justify-content: center;
 
     /* These styles are unchanged */
-    min-height: 400px;
+    min-height: 421px;
     padding: 10px;
     background-color: #e0e0e0;
     border-radius: 6px;
@@ -968,9 +978,9 @@ input, select{
     background: #f9f9f9;
     display: flex;
     align-items: center;
-    gap: 8px;
-    overflow: hidden; /* Crucial for the collapsed state */
-    flex-shrink: 0;
+    
+   
+    
 }
 
 
@@ -996,11 +1006,52 @@ input, select{
 }
 
 #device-selector {
-    min-width: 120px;
+  
     flex-grow: 1;
 }
 
 #device-selector-container {
     min-width: 44px; /* Matches your 50px sidebar - padding */
     text-align: center;
+}
+
+.device-info{
+    display : flex;
+
+}
+
+.device-info > input {
+    margin : 0;
+    padding-left : 4px;
+    flex : 1;
+}
+
+.id-prefix{
+ 
+    background-color: lightgray;
+    border: 1px solid #555;
+    display: flex;
+    align-items: center;
+    font-size: 1.125em;
+    padding-left : 0.3em;
+}
+
+.input-field{
+    display: flex;
+    flex-direction: column;
+    
+}
+
+#device-selector{
+    flex-grow: 1; 
+    padding: 4px; 
+    border-radius: 4px;
+    overflow: hidden !important;
+    min-width: 0;
+}
+
+#add-device-btn, #delete-device-btn, #edit-device-btn{
+    overflow: hidden !important;
+    min-width: 0 !important;
+    padding: 0;
 }

@@ -8,7 +8,6 @@ module.exports = {
       './res',
     ],
     ignore :[
-        '/deps/zadig-2.9.exe',
     
     ],
     

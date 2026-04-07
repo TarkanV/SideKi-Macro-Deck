@@ -1,0 +1,11 @@
+SFind(Name, WinTitle := "A") 
+
+SClick(Name, WinTitle := "A") 
+
+SFindWait(Name,  WinTitle := "A", MaxAttempts := 10, IntervalMS := 250) 
+
+SClickWait(elementName, clickType :="left", Interval:="250", WinTitle := "A")
+
+SClickRelative(element, clickType := "left", offsetX := 0, offsetY := 0) 
+
+SFindList(WinTitle := "A") 
