@@ -27,7 +27,7 @@ class USBKeyboardManager extends EventEmitter {
         usb.on('attach', (dev) => this.tryAttachDevice(dev));
         usb.on('detach', (dev) => this.handleDetach(dev));
         
-        console.log("[Macro Driver] Passive USB listener started successfully.");
+        //console.log("[Macro Driver] Passive USB listener started successfully.");
     }
 
     async tryAttachDevice(dev, retryCount = 0) {
@@ -72,7 +72,7 @@ class USBKeyboardManager extends EventEmitter {
                 throw new Error("Endpoint not ready"); 
             }
 
-            console.log(`[Macro Driver] Hooked Keyboard: ${config.name} (${vid.toString(16)}:${pid.toString(16)})`);
+            //console.log(`[Macro Driver] Hooked Keyboard: ${config.name} (${vid.toString(16)}:${pid.toString(16)})`);
             if (outEndpoint) {
                 console.log(`[Macro Driver] Found dedicated OUT endpoint for LEDs on ${config.name}`);
             }
@@ -86,13 +86,21 @@ class USBKeyboardManager extends EventEmitter {
             inEndpoint.on('data', (dataBuffer) => this.handleData(deviceKey, dataBuffer));
             
             inEndpoint.on('error', (err) => {
-                // Ignore silent detach errors to prevent console spam
-                if (!err.message.includes("LIBUSB_TRANSFER_NO_DEVICE")) {
-                    console.error(`[Macro Driver] Endpoint Error for ${config.name}:`, err.message);
+                const isPhysicalUnplug = err.message.includes("NO_DEVICE");
+                
+                if (!isPhysicalUnplug) {
+                    console.error(`[Macro Driver] ${config.name} stalled: ${err.message}`);
                 }
-                this.handleDetach(dev);
-            });
 
+                this.handleDetach(dev);
+
+                // Auto-recovery: If the device is still technically plugged in (Standby/Wake STALL)
+                if (!isPhysicalUnplug && this.isRunning) {
+                    console.log(`[Macro Driver] Wake-event detected. Recovering ${config.name}...`);
+                    setTimeout(() => this.reconnectById(vid, pid), 1000);
+                }
+            });
+          
            
             console.log(`[Macro Driver] SUCCESS: ${config.name} Hooked.`);
 
@@ -108,6 +116,19 @@ class USBKeyboardManager extends EventEmitter {
             } else {
                 console.error(`[Macro Driver] Could not claim ${config.name}:`, err.message);
             }
+        }
+    }
+
+    reconnectById(vid, pid) {
+        if (!this.isRunning) return;
+        
+        const freshDevice = getDeviceList().find(d => 
+            d.deviceDescriptor.idVendor === vid && 
+            d.deviceDescriptor.idProduct === pid
+        );
+
+        if (freshDevice) {
+            this.tryAttachDevice(freshDevice);
         }
     }
 
@@ -179,7 +200,6 @@ class USBKeyboardManager extends EventEmitter {
             if (dataBuffer.length < 8) return;
 
             const { config } = this.activeDevices.get(deviceKey);
-            
             let modByte = dataBuffer.readUInt8(0);
             let modifiers =[];
             for (let i = 0; i < 8; i++) {
@@ -200,11 +220,15 @@ class USBKeyboardManager extends EventEmitter {
             let ups = lastKeys.filter(k => !currentKeys.includes(k));
             let downs = currentKeys.filter(k => !lastKeys.includes(k));
             let ledChanged = false;
-
+            
+            
             for (const key of downs) {
                 if (key === 57) { this.lockStates.caps = !this.lockStates.caps; ledChanged = true; }
                 if (key === 83) { this.lockStates.num = !this.lockStates.num; ledChanged = true; }
                 if (key === 71) { this.lockStates.scroll = !this.lockStates.scroll; ledChanged = true; }
+
+                
+                //console.log(`Key: ${key}, ${currentKeys}`);
                 this.sendAhkEvent(config.name, key, "down", currentKeys);
             }
             
@@ -272,7 +296,7 @@ class USBKeyboardManager extends EventEmitter {
             num: states.num ?? this.lockStates.num,
             scroll: states.scroll ?? this.lockStates.scroll
         };
-        console.log("[Macro Driver] Synced Lock States with OS:", this.lockStates);
+        //console.log("[Macro Driver] Synced Lock States with OS:", this.lockStates);
         this.updateAllLEDs();
     }
 }

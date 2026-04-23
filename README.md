@@ -1,5 +1,13 @@
 # SideKi-Macro-Deck
- AutoHotKey and MultiKB GUI tool for assigning macro commands to secondary keyboard (or eventually numpad).
+ Gui application for intercepting and remapping keys from a secondary keyboard, built with Electron and using AutoHotKey for Macros.
+
+## Features:
+- Full Keyboard and Numpad intuitive key remapping.
+- Basic Autohotkey code editor with syntax highlighting and auto-completion.
+- Program specific profiles.
+- Ability to filter programs windows by their titles (therefore allowing for multiple profiles for the same program).
+- Multiple profiles per program and ability to switch between them through a configurable Hotkey.
+- Drag and drop keyboard keys to swap their macros.
 
 ## Build & Run Instructions
 
@@ -49,4 +57,5 @@
 
 ### Plan for Next Updates :
  - Synchronize program profile state in Side-Ki and AutoHotKey script.
+ - Make comment based key titles more intuitive and user friendly.
  - Dark mode.

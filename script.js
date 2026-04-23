@@ -2,7 +2,7 @@
 
 const runDriver = true;
 
-const { ipcRenderer } = require("electron");
+const { ipcRenderer, powerMonitor } = require("electron");
 
 const path = require("path");
 const fs = require("fs").promises;
@@ -1388,15 +1388,19 @@ ProcessKeyPress(keyEvent)
     {
         activeKeys[keyName] := true
     }
-    else
+
+    local handled := HandleHotkey(deviceName, keyName, keyEvent["state"], activeKeys)
+
+    if (keyEvent["state"] = "up")
     {
         activeKeys.Delete(keyName)
     }    
-    
-    if (HandleHotkey(deviceName, keyName, keyEvent["state"], activeKeys))
-    {       
-        return ; Consume the keypress, whether it was up or down.
+
+     if (handled) {
+        return
     }
+    
+   
     
     local isModifier := ( InStr(keyName, "Control") || InStr(keyName, "Alt") || InStr(keyName, "Shift") || InStr(keyName, "Win") )
     
@@ -1474,7 +1478,7 @@ class KeyRepeatHandler
 
 ; --- 4. KEY MAP (Updated with Dynamic NumLock State Handling) ---
 GetKeyNameFromCode(code, deviceName := "") {
-    static keyMap := Map("4","a","5","b","6","c","7","d","8","e","9","f","10","g","11","h","12","i","13","j","14","k","15","l","16","m","17","n","18","o","19","p","20","q","21","r","22","s","23","t","24","u","25","v","26","w","27","x","28","y","29","z","30","1","31","2","32","3","33","4","34","5","35","6","36","7","37","8","38","9","39","0","40","Enter","41","Escape","42","Backspace","43","Tab","44","Space","45","-","46","=","47","[","48","]","49","\","51",";","52","'","53","\`\`","54",",","55",".","56","/","57","CapsLock","58","F1","59","F2","60","F3","61","F4","62","F5","63","F6","64","F7","65","F8","66","F9","67","F10","68","F11","69","F12", "70", "PrintScreen", "71","ScrollLock","72","Pause","73","Insert","74","Home","75","PgUp","76","Delete","77","End","78","PgDn","79","Right","80","Left","81","Down","82","Up", "83","NumLock","84","NumpadDiv","85","NumpadMult","86","NumpadSub","87","NumpadAdd","88","NumpadEnter","89","Numpad1","90","Numpad2","91","Numpad3","92","Numpad4","93","Numpad5","94","Numpad6","95","Numpad7","96","Numpad8","97","Numpad9","98","Numpad0","99","NumpadDot", "224","LControl","225","LShift","226","LAlt","227","LWin","228","RControl","229","RShift","230","RAlt","231","RWin")
+    static keyMap := Map("4","a","5","b","6","c","7","d","8","e","9","f","10","g","11","h","12","i","13","j","14","k","15","l","16","m","17","n","18","o","19","p","20","q","21","r","22","s","23","t","24","u","25","v","26","w","27","x","28","y","29","z","30","1","31","2","32","3","33","4","34","5","35","6","36","7","37","8","38","9","39","0","40","Enter","41","Escape","42","Backspace","43","Tab","44","Space","45","-","46","=","47","[","48","]","49","\\","51",";","52","'","53","\`\`","54",",","55",".","56","/","57","CapsLock","58","F1","59","F2","60","F3","61","F4","62","F5","63","F6","64","F7","65","F8","66","F9","67","F10","68","F11","69","F12", "70", "PrintScreen", "71","ScrollLock","72","Pause","73","Insert","74","Home","75","PgUp","76","Delete","77","End","78","PgDn","79","Right","80","Left","81","Down","82","Up", "83","NumLock","84","NumpadDiv","85","NumpadMult","86","NumpadSub","87","NumpadAdd","88","NumpadEnter","89","Numpad1","90","Numpad2","91","Numpad3","92","Numpad4","93","Numpad5","94","Numpad6","95","Numpad7","96","Numpad8","97","Numpad9","98","Numpad0","99","NumpadDot", "224","LControl","225","LShift","226","LAlt","227","LWin","228","RControl","229","RShift","230","RAlt","231","RWin")
     
     codeStr := "" . code
     if (!keyMap.Has(codeStr))
@@ -1709,29 +1713,44 @@ _ExecuteHotkeyForContext(deviceName, contextName, keyName, state, activeKeys) {
     }
 
     local profile := program["profiles"][activeProfileName]
-    local ctrlHeld := activeKeys.Has("LControl") || activeKeys.Has("RControl")
-    local altHeld := activeKeys.Has("LAlt") || activeKeys.Has("RAlt")
-    local shiftHeld := activeKeys.Has("LShift") || activeKeys.Has("RShift")
-    
+
     local layerName := ""
-    if (ctrlHeld && !altHeld && !shiftHeld) {
-        layerName := "ctrl_hotkeys"
-    } else if (altHeld && !ctrlHeld && !shiftHeld) {
-        layerName := "alt_hotkeys"
-    } else if (shiftHeld && !ctrlHeld && !altHeld) {
-        layerName := "shift_hotkeys"
-    } else if (!ctrlHeld && !altHeld && !shiftHeld) {
-        layerName := "hotkeys"
-        
+
+
+    if (state = "up" && activeKeys.Has(keyName) && Type(activeKeys[keyName]) = "String") {
+        layerName := activeKeys[keyName]
     } else {
-        return false
+        ; === PRECISE CHANGE: REMOVED "P" ===
+        ; Now detects Stylus buttons seamlessly!
+        local ctrlHeld := activeKeys.Has("LControl") || activeKeys.Has("RControl") || GetKeyState("Ctrl")
+        local altHeld := activeKeys.Has("LAlt") || activeKeys.Has("RAlt") || GetKeyState("Alt")
+        local shiftHeld := activeKeys.Has("LShift") || activeKeys.Has("RShift") || GetKeyState("Shift")
+        
+        if (ctrlHeld && !altHeld && !shiftHeld) {
+            layerName := "ctrl_hotkeys"
+        } else if (altHeld && !ctrlHeld && !shiftHeld) {
+            layerName := "alt_hotkeys"
+        } else if (shiftHeld && !ctrlHeld && !altHeld) {
+            layerName := "shift_hotkeys"
+        } else if (!ctrlHeld && !altHeld && !shiftHeld) {
+            layerName := "hotkeys"
+        } else {
+            return false
+        }
     }
 
     local upperKeyName := StrUpper(keyName)
     if (profile.Has(layerName) && profile[layerName].Has(upperKeyName))
     {
+
+        if (state = "down") {
+            activeKeys[keyName] := layerName
+        }
+
         local hotkeyData := profile[layerName][upperKeyName]
         local action := (state = "down") ? "down" : "up"
+
+        
         
         if (hotkeyData.Has(action))
         {
@@ -1741,25 +1760,57 @@ _ExecuteHotkeyForContext(deviceName, contextName, keyName, state, activeKeys) {
                 try
                 {
                    
-                    if(altHeld){
+                    local sLCtrl := activeKeys.Has("LControl")
+                    local sRCtrl := activeKeys.Has("RControl")
+                    local sLAlt := activeKeys.Has("LAlt")
+                    local sRAlt := activeKeys.Has("RAlt")
+                    local sLShift := activeKeys.Has("LShift")
+                    local sRShift := activeKeys.Has("RShift")
+
+                    if (sLAlt) { 
                         Send "{Blind}{vkE8}"
-                        SendEvent '{Alt Up}'   
+                        SendEvent "{LAlt Up}" 
                     }
-                    if(shiftHeld)
-                        SendEvent '{Shift Up}'
-                    if(ctrlHeld)
-                        SendEvent '{Ctrl Up}'   
+                    if (sRAlt) { 
+                        Send "{Blind}{vkE8}" 
+                        SendEvent "{RAlt Up}" 
+                    }
+                    if (sLShift) { 
+                        SendEvent "{LShift Up}" 
+                    }
+                    if (sRShift) { 
+                        SendEvent "{RShift Up}" 
+                    }
+                    if (sLCtrl) { 
+                        SendEvent "{LCtrl Up}" 
+                    }
+                    if (sRCtrl) { 
+                        SendEvent "{RCtrl Up}" 
+                    }
+
 
                     %funcName%()
 
-                    if(altHeld){    
-                        Send '{Alt Down}'
-                        Send "{Blind}{vkE8}"
+                    if (sLAlt) { 
+                        Send "{LAlt Down}"
+                        Send "{Blind}{vkE8}" 
                     }
-                    if (ctrlHeld)
-                        SendEvent "{Ctrl Down}" 
-                    if (shiftHeld)
-                        SendEvent "{Shift Down}"
+                    if (sRAlt) { 
+                        Send "{RAlt Down}"
+                        Send "{Blind}{vkE8}" 
+                    }
+                    if (sLCtrl) { 
+                        SendEvent "{LCtrl Down}" 
+                    }
+                    if (sRCtrl) {   
+                        SendEvent "{RCtrl Down}" 
+                    }
+                    if (sLShift) { 
+                        SendEvent "{LShift Down}" 
+                    }
+                    if (sRShift) { 
+                        SendEvent "{RShift Down}" 
+                    }
                 }
                 catch as e
                 {
@@ -1791,9 +1842,11 @@ _CheckAndCycleProfile(deviceName, contextName, keyName, activeKeys) {
         {
             return false
         }
-        local ctrlHeld := activeKeys.Has("LControl") || activeKeys.Has("RControl")
-        local altHeld := activeKeys.Has("LAlt") || activeKeys.Has("RAlt")
-        local shiftHeld := activeKeys.Has("LShift") || activeKeys.Has("RShift")
+            
+        local ctrlHeld := activeKeys.Has("LControl") || activeKeys.Has("RControl") || GetKeyState("Ctrl")
+        local altHeld := activeKeys.Has("LAlt") || activeKeys.Has("RAlt") || GetKeyState("Alt")
+        local shiftHeld := activeKeys.Has("LShift") || activeKeys.Has("RShift") || GetKeyState("Shift")
+
         if (cycleData["ctrl"] != ctrlHeld || cycleData["alt"] != altHeld || cycleData["shift"] != shiftHeld)
         {
             return false
@@ -1958,7 +2011,7 @@ async function runOrReloadScript(isDriver = false) {
         // === PRECISE CHANGE: Listen for AHK's initial lock state broadcast ===
         ahkProcess.stdout.on('data', (data) => {
             const message = data.toString().trim();
-            console.log(`[AHK STDOUT]: ${message}`);
+            //console.log(`[AHK STDOUT]: ${message}`);
 
             try {
                 const parsed = JSON.parse(message);
@@ -2263,6 +2316,7 @@ function setupEventListeners() {
     document.getElementById("config-folder-btn").addEventListener("click", async (e) => {
         await exec(`explorer.exe ${USER_CONFIG_DIR}`);
     });
+    /*
     document.getElementById("config-file-btn").addEventListener("click", async (e) =>{
         await exec(`code ${AHK_CONFIG_SCRIPT_PATH}`);
         const child = spawn("code", [AHK_CONFIG_SCRIPT_PATH], {
@@ -2274,6 +2328,7 @@ function setupEventListeners() {
         child.unref()
 
     });
+    */
     document.getElementById("universal-macros-btn").addEventListener("click", async (e) =>{
         await exec(`code ${UNIVERSAL_MACROS_PATH}`);
     });
@@ -2510,6 +2565,21 @@ ipcRenderer.on("toast", async () =>{
     console.log("EMISSION WORKS!!!");
 });
 
+ipcRenderer.on("system-resume", () => {
+      // Only recover if the driver was actually running before it went to sleep
+      if (typeof MacroDriver !== 'undefined' && MacroDriver.isRunning) {
+          const statusMsg = document.getElementById("status-message");
+          console.log("System woke up. Refreshing USB Driver...");
+          statusMsg.textContent = "System woke up. Refreshing USB Driver...";
+          statusMsg.style.color = "orange";
+          
+          // Give Windows 2 seconds to finish powering up the USB hubs
+          setTimeout(() => {
+              runOrReloadScript(true);
+          }, 400);
+      }
+  });
+
 
 
 // --- In your script.js, replace the old list with this one ---
@@ -2654,5 +2724,9 @@ const ahkHinter = (editor) => {
 CodeMirror.registerHelper('hint', 'autohotkey', ahkHinter);
 
 const bro = "test";
+
+
+window.MacroDriver = MacroDriver;
+window.State = State;
 
 

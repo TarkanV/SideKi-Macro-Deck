@@ -1,7 +1,8 @@
-    const { app, screen, BrowserWindow, globalShortcut, ipcMain, dialog,  Tray, Menu, ipcRenderer } = require('electron')
+    const { app, screen, BrowserWindow, globalShortcut, ipcMain, dialog,  Tray, Menu, ipcRenderer, powerMonitor } = require('electron')
     const path = require('path');
     const fs = require('fs').promises;
     const { exec, spawn } = require('child_process');
+    const  localshortcut  = require('electron-localshortcut');
 
 
     let win;
@@ -85,6 +86,14 @@
 
         });
 
+         // Register global shortcuts from your GlobalShortcutManager logic
+         localshortcut.register(win, 'Control+Shift+C', () =>{
+            win.webContents.openDevTools({ mode: 'detach', activate : false });
+         })
+         localshortcut.register(win, 'F12', () =>{
+            win.webContents.openDevTools({ mode: 'detach', activate : false });
+         })
+
     };
 
 
@@ -116,9 +125,9 @@
         createWindow();
 
     
-        
-        // Register global shortcuts from your GlobalShortcutManager logic
-        
+            
+       
+
         globalShortcut.register('Control+PrintScreen', () => {
             // When the shortcut is pressed, find the main window...
             const win = BrowserWindow.getAllWindows()[0];
@@ -133,6 +142,13 @@
             if (win) {
 
                 win.webContents.send('global-shortcut-triggered', 'toggle-reload');
+            }
+        });
+
+        powerMonitor.on('resume', () => {
+            if (win) {
+                //console.log("System waking up. Notifying renderer...");
+                win.webContents.send('system-resume');
             }
         });
     });

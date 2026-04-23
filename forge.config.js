@@ -5,7 +5,7 @@ module.exports = {
       asar: true,
       extraResource: [
       './deps',
-      './res',
+   
     ],
     ignore :[
     

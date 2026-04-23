@@ -30,6 +30,7 @@
     "electron": "^38.0.0-beta.1"
   },
   "dependencies": {
+    "electron-localshortcut": "^3.2.1",
     "usb": "^2.17.0"
   }
 }
